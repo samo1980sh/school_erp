@@ -13,19 +13,19 @@ class ManageUsers extends ManageRecords
 
     public function getTitle(): string
     {
-        return 'المستخدمون';
+        return __('school.users.title');
     }
 
     public function getHeading(): string
     {
-        return 'إدارة المستخدمين';
+        return __('school.users.heading');
     }
 
     protected function getHeaderActions(): array
     {
         return [
             CreateAction::make()
-                ->label('إضافة مستخدم')
+                ->label(__('school.users.actions.create'))
                 ->slideOver()
                 ->modalWidth(Width::FiveExtraLarge)
                 ->visible(fn(): bool => auth()->user()?->can('users.create') ?? false),

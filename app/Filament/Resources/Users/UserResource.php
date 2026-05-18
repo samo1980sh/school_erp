@@ -25,7 +25,7 @@ class UserResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-users';
 
-    protected static string|UnitEnum|null $navigationGroup = 'إدارة النظام';
+    protected static string|UnitEnum|null $navigationGroup = 'school.navigation.system_management';
 
     protected static ?int $navigationSort = 10;
 
@@ -35,17 +35,22 @@ class UserResource extends Resource
 
     public static function getModelLabel(): string
     {
-        return 'مستخدم';
+        return __('school.users.model');
     }
 
     public static function getPluralModelLabel(): string
     {
-        return 'المستخدمون';
+        return __('school.users.plural');
     }
 
     public static function getNavigationLabel(): string
     {
-        return 'المستخدمون';
+        return __('school.users.navigation');
+    }
+
+    public static function getNavigationGroup(): ?string
+    {
+        return __('school.navigation.system_management');
     }
 
     public static function shouldRegisterNavigation(): bool
@@ -100,24 +105,24 @@ class UserResource extends Resource
     {
         return $schema
             ->components([
-                Section::make('بيانات المستخدم')
-                    ->description('إدارة بيانات الدخول الأساسية للمستخدم داخل النظام.')
+                Section::make(__('school.users.sections.basic.title'))
+                    ->description(__('school.users.sections.basic.description'))
                     ->schema([
                         TextInput::make('name')
-                            ->label('الاسم')
+                            ->label(__('school.users.fields.name'))
                             ->required()
                             ->maxLength(255)
                             ->autofocus(),
 
                         TextInput::make('email')
-                            ->label('البريد الإلكتروني')
+                            ->label(__('school.users.fields.email'))
                             ->email()
                             ->required()
                             ->unique(ignoreRecord: true)
                             ->maxLength(255),
 
                         TextInput::make('password')
-                            ->label('كلمة المرور')
+                            ->label(__('school.users.fields.password'))
                             ->password()
                             ->revealable()
                             ->required(fn(string $operation): bool => $operation === 'create')
@@ -129,7 +134,7 @@ class UserResource extends Resource
                             ->maxLength(255),
 
                         TextInput::make('password_confirmation')
-                            ->label('تأكيد كلمة المرور')
+                            ->label(__('school.users.fields.password_confirmation'))
                             ->password()
                             ->revealable()
                             ->required(fn(string $operation): bool => $operation === 'create')
@@ -140,17 +145,17 @@ class UserResource extends Resource
                     ])
                     ->columns(2),
 
-                Section::make('الأدوار')
-                    ->description('ربط المستخدم بالأدوار الإدارية داخل النظام. حسابات super_admin محمية من تعديل الأدوار.')
+                Section::make(__('school.users.sections.roles.title'))
+                    ->description(__('school.users.sections.roles.description'))
                     ->schema([
                         Select::make('roles')
-                            ->label('أدوار المستخدم')
+                            ->label(__('school.users.fields.roles'))
                             ->multiple()
                             ->preload()
                             ->searchable()
                             ->disabled(fn(?User $record): bool => $record?->id === auth()->id() || ($record?->hasRole('super_admin') ?? false))
                             ->relationship(titleAttribute: 'name')
-                            ->helperText('لحماية النظام، لا يمكن تعديل أدوار حسابك الحالي أو حسابات super_admin من هذه الشاشة.'),
+                            ->helperText(__('school.users.messages.roles_help')),
                     ])
                     ->columns(1),
             ]);
@@ -162,46 +167,46 @@ class UserResource extends Resource
             ->defaultSort('id', 'desc')
             ->columns([
                 TextColumn::make('name')
-                    ->label('الاسم')
+                    ->label(__('school.users.fields.name'))
                     ->searchable()
                     ->sortable()
                     ->description(fn(User $record): ?string => $record->hasRole('super_admin')
-                        ? 'حساب نظام رئيسي - محمي'
+                        ? __('school.users.messages.protected_super_admin')
                         : null),
 
                 TextColumn::make('email')
-                    ->label('البريد الإلكتروني')
+                    ->label(__('school.users.fields.email'))
                     ->searchable()
                     ->sortable(),
 
                 TextColumn::make('roles.name')
-                    ->label('الأدوار')
+                    ->label(__('school.users.fields.roles'))
                     ->badge()
                     ->separator(',')
                     ->default('—'),
 
                 TextColumn::make('created_at')
-                    ->label('تاريخ الإنشاء')
+                    ->label(__('school.users.fields.created_at'))
                     ->dateTime('Y-m-d H:i')
                     ->sortable(),
             ])
             ->recordActions([
                 EditAction::make()
-                    ->label('تعديل')
+                    ->label(__('school.users.actions.edit'))
                     ->slideOver()
                     ->modalWidth(Width::FiveExtraLarge)
                     ->visible(fn(User $record): bool => static::canManageSensitiveUser($record))
-                    ->successNotificationTitle('تم تحديث المستخدم بنجاح'),
+                    ->successNotificationTitle(__('school.users.messages.updated')),
 
                 Action::make('changePassword')
-                    ->label('تغيير كلمة المرور')
+                    ->label(__('school.users.actions.change_password'))
                     ->icon('heroicon-o-key')
                     ->slideOver()
                     ->modalWidth(Width::Large)
                     ->visible(fn(User $record): bool => static::canManageSensitiveUser($record))
                     ->form([
                         TextInput::make('password')
-                            ->label('كلمة المرور الجديدة')
+                            ->label(__('school.users.fields.new_password'))
                             ->password()
                             ->revealable()
                             ->required()
@@ -210,7 +215,7 @@ class UserResource extends Resource
                             ->maxLength(255),
 
                         TextInput::make('password_confirmation')
-                            ->label('تأكيد كلمة المرور الجديدة')
+                            ->label(__('school.users.fields.new_password_confirmation'))
                             ->password()
                             ->revealable()
                             ->required()
@@ -223,7 +228,7 @@ class UserResource extends Resource
                             'password' => Hash::make($data['password']),
                         ])->save();
                     })
-                    ->successNotificationTitle('تم تغيير كلمة المرور بنجاح'),
+                    ->successNotificationTitle(__('school.users.messages.password_changed')),
             ]);
     }
 
