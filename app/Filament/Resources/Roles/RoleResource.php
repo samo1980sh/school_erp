@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Roles;
 use App\Filament\Resources\Roles\Pages\ManageRoles;
 use BackedEnum;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
@@ -13,6 +14,7 @@ use Filament\Support\Enums\Width;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 use UnitEnum;
 
 class RoleResource extends Resource
@@ -49,7 +51,7 @@ class RoleResource extends Resource
         return $schema
             ->components([
                 Section::make('بيانات الدور')
-                    ->description('إدارة أسماء الأدوار الأساسية داخل النظام. الصلاحيات التفصيلية ستضاف في مرحلة مستقلة.')
+                    ->description('إدارة اسم الدور والحارس المستخدم في نظام الصلاحيات.')
                     ->schema([
                         TextInput::make('name')
                             ->label('اسم الدور')
@@ -67,6 +69,19 @@ class RoleResource extends Resource
                             ->maxLength(255),
                     ])
                     ->columns(2),
+
+                Section::make('صلاحيات الدور')
+                    ->description('اختر الصلاحيات المرتبطة بهذا الدور. سيتم تطبيقها لاحقًا عند إضافة Policies وحماية الموارد.')
+                    ->schema([
+                        Select::make('permissions')
+                            ->label('الصلاحيات')
+                            ->multiple()
+                            ->preload()
+                            ->searchable()
+                            ->relationship(titleAttribute: 'name')
+                            ->helperText('مثال: users.view / users.create / users.update'),
+                    ])
+                    ->columns(1),
             ]);
     }
 
@@ -85,6 +100,12 @@ class RoleResource extends Resource
                     ->badge()
                     ->sortable(),
 
+                TextColumn::make('permissions.name')
+                    ->label('الصلاحيات')
+                    ->badge()
+                    ->separator(',')
+                    ->default('—'),
+
                 TextColumn::make('created_at')
                     ->label('تاريخ الإنشاء')
                     ->dateTime('Y-m-d H:i')
@@ -98,6 +119,9 @@ class RoleResource extends Resource
                     ->label('تعديل')
                     ->slideOver()
                     ->modalWidth(Width::FiveExtraLarge)
+                    ->after(function (): void {
+                        app(PermissionRegistrar::class)->forgetCachedPermissions();
+                    })
                     ->successNotificationTitle('تم تحديث الدور بنجاح'),
             ])
             ->toolbarActions([

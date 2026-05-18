@@ -6,6 +6,7 @@ use App\Filament\Resources\Roles\RoleResource;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ManageRecords;
 use Filament\Support\Enums\Width;
+use Spatie\Permission\PermissionRegistrar;
 
 class ManageRoles extends ManageRecords
 {
@@ -28,6 +29,9 @@ class ManageRoles extends ManageRecords
                 ->label('إضافة دور')
                 ->slideOver()
                 ->modalWidth(Width::FiveExtraLarge)
+                ->after(function (): void {
+                    app(PermissionRegistrar::class)->forgetCachedPermissions();
+                })
                 ->successNotificationTitle('تم إنشاء الدور بنجاح'),
         ];
     }
