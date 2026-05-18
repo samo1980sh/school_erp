@@ -2,8 +2,8 @@
 
 namespace App\Providers\Filament;
 
-use Filament\View\PanelsRenderHook;
 use App\Http\Middleware\SetFilamentLocale;
+use Filament\Actions\Action;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -12,6 +12,7 @@ use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\View\PanelsRenderHook;
 use Filament\Widgets\AccountWidget;
 use Filament\Widgets\FilamentInfoWidget;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
@@ -30,14 +31,32 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login()
+            ->userMenuItems([
+                Action::make('switchToArabic')
+                    ->label('العربية')
+                    ->icon('heroicon-o-language')
+                    ->url(fn(): string => route('admin.switch-language', ['locale' => 'ar']))
+                    ->visible(fn(): bool => app()->getLocale() !== 'ar'),
+
+                Action::make('switchToEnglish')
+                    ->label('English')
+                    ->icon('heroicon-o-language')
+                    ->url(fn(): string => route('admin.switch-language', ['locale' => 'en']))
+                    ->visible(fn(): bool => app()->getLocale() !== 'en'),
+            ])
             ->renderHook(
                 PanelsRenderHook::HEAD_END,
-                fn(): string => <<<'HTML'
-                    <script>
-                        document.documentElement.setAttribute('dir', 'rtl');
-                        document.documentElement.setAttribute('lang', 'ar');
-                    </script>
-                HTML
+                function (): string {
+                    $locale = app()->getLocale();
+                    $direction = $locale === 'ar' ? 'rtl' : 'ltr';
+
+                    return <<<HTML
+                        <script>
+                            document.documentElement.setAttribute('dir', '{$direction}');
+                            document.documentElement.setAttribute('lang', '{$locale}');
+                        </script>
+                    HTML;
+                }
             )
             ->colors([
                 'primary' => Color::Amber,
