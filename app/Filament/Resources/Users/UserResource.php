@@ -7,6 +7,7 @@ use App\Models\User;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
@@ -89,6 +90,20 @@ class UserResource extends Resource
                             ->maxLength(255),
                     ])
                     ->columns(2),
+
+                Section::make('الأدوار')
+                    ->description('ربط المستخدم بالأدوار الإدارية داخل النظام. الصلاحيات التفصيلية ستضاف لاحقًا في مرحلة مستقلة.')
+                    ->schema([
+                        Select::make('roles')
+                            ->label('أدوار المستخدم')
+                            ->multiple()
+                            ->preload()
+                            ->searchable()
+                            ->disabled(fn(?User $record): bool => $record?->id === auth()->id())
+                            ->relationship(titleAttribute: 'name')
+                            ->helperText('لحماية النظام، لا يمكن تعديل أدوار حسابك الحالي من هذه الشاشة.'),
+                    ])
+                    ->columns(1),
             ]);
     }
 
@@ -110,6 +125,7 @@ class UserResource extends Resource
                 TextColumn::make('roles.name')
                     ->label('الأدوار')
                     ->badge()
+                    ->separator(',')
                     ->default('—'),
 
                 TextColumn::make('created_at')
