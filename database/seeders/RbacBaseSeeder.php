@@ -2,34 +2,35 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
 use Illuminate\Database\Seeder;
-use Spatie\Permission\Models\Role;
+use Spatie\Permission\Models\Permission;
 use Spatie\Permission\PermissionRegistrar;
 
-class RbacBaseSeeder extends Seeder
+class RbacPermissionSeeder extends Seeder
 {
     public function run(): void
     {
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        $guardName = 'web';
+        $permissions = [
+            'users.view',
+            'users.create',
+            'users.update',
 
-        $superAdminRole = Role::firstOrCreate([
-            'name' => 'super_admin',
-            'guard_name' => $guardName,
-        ]);
+            'roles.view',
+            'roles.create',
+            'roles.update',
 
-        $adminEmail = env('SEED_SUPER_ADMIN_EMAIL', 'admin@school-erp.local');
+            'permissions.view',
+            'permissions.create',
+            'permissions.update',
+        ];
 
-        $admin = User::where('email', $adminEmail)->first();
-
-        if (! $admin) {
-            throw new \RuntimeException("Super admin user not found: {$adminEmail}");
-        }
-
-        if (! $admin->hasRole($superAdminRole)) {
-            $admin->assignRole($superAdminRole);
+        foreach ($permissions as $permission) {
+            Permission::firstOrCreate([
+                'name' => $permission,
+                'guard_name' => 'web',
+            ]);
         }
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
