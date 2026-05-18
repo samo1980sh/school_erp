@@ -47,4 +47,42 @@ return [
             'roles_help' => 'لحماية النظام، لا يمكن تعديل أدوار حسابك الحالي أو حسابات super_admin من هذه الشاشة.',
         ],
     ],
+
+    'roles' => [
+        'model' => 'دور',
+        'plural' => 'الأدوار',
+        'navigation' => 'الأدوار',
+        'title' => 'الأدوار',
+        'heading' => 'إدارة الأدوار',
+
+        'sections' => [
+            'basic' => [
+                'title' => 'بيانات الدور',
+                'description' => 'إدارة اسم الدور والحارس المستخدم في نظام الصلاحيات.',
+            ],
+            'permissions' => [
+                'title' => 'صلاحيات الدور',
+                'description' => 'اختر الصلاحيات المرتبطة بهذا الدور. دور super_admin محمي ولا يتم تعديله من الواجهة.',
+            ],
+        ],
+
+        'fields' => [
+            'name' => 'اسم الدور',
+            'guard_name' => 'الحارس',
+            'permissions' => 'الصلاحيات',
+            'created_at' => 'تاريخ الإنشاء',
+        ],
+
+        'actions' => [
+            'create' => 'إضافة دور',
+            'edit' => 'تعديل',
+        ],
+
+        'messages' => [
+            'created' => 'تم إنشاء الدور بنجاح',
+            'updated' => 'تم تحديث الدور بنجاح',
+            'protected_super_admin' => 'دور النظام الرئيسي - محمي من التعديل',
+            'permissions_help' => 'مثال: users.view / users.create / users.update',
+        ],
+    ],
 ];

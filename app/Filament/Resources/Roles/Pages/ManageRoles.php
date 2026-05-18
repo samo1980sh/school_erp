@@ -14,26 +14,26 @@ class ManageRoles extends ManageRecords
 
     public function getTitle(): string
     {
-        return 'الأدوار';
+        return __('school.roles.title');
     }
 
     public function getHeading(): string
     {
-        return 'إدارة الأدوار';
+        return __('school.roles.heading');
     }
 
     protected function getHeaderActions(): array
     {
         return [
             CreateAction::make()
-                ->label('إضافة دور')
+                ->label(__('school.roles.actions.create'))
                 ->slideOver()
                 ->modalWidth(Width::FiveExtraLarge)
                 ->visible(fn(): bool => auth()->user()?->can('roles.create') ?? false)
                 ->after(function (): void {
                     app(PermissionRegistrar::class)->forgetCachedPermissions();
                 })
-                ->successNotificationTitle('تم إنشاء الدور بنجاح'),
+                ->successNotificationTitle(__('school.roles.messages.created')),
         ];
     }
 }

@@ -24,7 +24,7 @@ class RoleResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-shield-check';
 
-    protected static string|UnitEnum|null $navigationGroup = 'إدارة النظام';
+    protected static string|UnitEnum|null $navigationGroup = 'school.navigation.system_management';
 
     protected static ?int $navigationSort = 20;
 
@@ -34,17 +34,22 @@ class RoleResource extends Resource
 
     public static function getModelLabel(): string
     {
-        return 'دور';
+        return __('school.roles.model');
     }
 
     public static function getPluralModelLabel(): string
     {
-        return 'الأدوار';
+        return __('school.roles.plural');
     }
 
     public static function getNavigationLabel(): string
     {
-        return 'الأدوار';
+        return __('school.roles.navigation');
+    }
+
+    public static function getNavigationGroup(): ?string
+    {
+        return __('school.navigation.system_management');
     }
 
     public static function shouldRegisterNavigation(): bool
@@ -85,18 +90,18 @@ class RoleResource extends Resource
     {
         return $schema
             ->components([
-                Section::make('بيانات الدور')
-                    ->description('إدارة اسم الدور والحارس المستخدم في نظام الصلاحيات.')
+                Section::make(__('school.roles.sections.basic.title'))
+                    ->description(__('school.roles.sections.basic.description'))
                     ->schema([
                         TextInput::make('name')
-                            ->label('اسم الدور')
+                            ->label(__('school.roles.fields.name'))
                             ->required()
                             ->unique(table: 'roles', column: 'name', ignoreRecord: true)
                             ->maxLength(255)
                             ->autofocus(),
 
                         TextInput::make('guard_name')
-                            ->label('الحارس')
+                            ->label(__('school.roles.fields.guard_name'))
                             ->default('web')
                             ->required()
                             ->disabled()
@@ -105,16 +110,16 @@ class RoleResource extends Resource
                     ])
                     ->columns(2),
 
-                Section::make('صلاحيات الدور')
-                    ->description('اختر الصلاحيات المرتبطة بهذا الدور. دور super_admin محمي ولا يتم تعديله من الواجهة.')
+                Section::make(__('school.roles.sections.permissions.title'))
+                    ->description(__('school.roles.sections.permissions.description'))
                     ->schema([
                         Select::make('permissions')
-                            ->label('الصلاحيات')
+                            ->label(__('school.roles.fields.permissions'))
                             ->multiple()
                             ->preload()
                             ->searchable()
                             ->relationship(titleAttribute: 'name')
-                            ->helperText('مثال: users.view / users.create / users.update'),
+                            ->helperText(__('school.roles.messages.permissions_help')),
                     ])
                     ->columns(1),
             ]);
@@ -126,32 +131,32 @@ class RoleResource extends Resource
             ->defaultSort('id', 'asc')
             ->columns([
                 TextColumn::make('name')
-                    ->label('اسم الدور')
+                    ->label(__('school.roles.fields.name'))
                     ->searchable()
                     ->sortable()
                     ->description(fn(Role $record): ?string => $record->name === 'super_admin'
-                        ? 'دور النظام الرئيسي - محمي من التعديل'
+                        ? __('school.roles.messages.protected_super_admin')
                         : null),
 
                 TextColumn::make('guard_name')
-                    ->label('الحارس')
+                    ->label(__('school.roles.fields.guard_name'))
                     ->badge()
                     ->sortable(),
 
                 TextColumn::make('permissions.name')
-                    ->label('الصلاحيات')
+                    ->label(__('school.roles.fields.permissions'))
                     ->badge()
                     ->separator(',')
                     ->default('—'),
 
                 TextColumn::make('created_at')
-                    ->label('تاريخ الإنشاء')
+                    ->label(__('school.roles.fields.created_at'))
                     ->dateTime('Y-m-d H:i')
                     ->sortable(),
             ])
             ->recordActions([
                 EditAction::make()
-                    ->label('تعديل')
+                    ->label(__('school.roles.actions.edit'))
                     ->slideOver()
                     ->modalWidth(Width::FiveExtraLarge)
                     ->visible(fn(Role $record): bool => $record->name !== 'super_admin'
@@ -159,7 +164,7 @@ class RoleResource extends Resource
                     ->after(function (): void {
                         app(PermissionRegistrar::class)->forgetCachedPermissions();
                     })
-                    ->successNotificationTitle('تم تحديث الدور بنجاح'),
+                    ->successNotificationTitle(__('school.roles.messages.updated')),
             ]);
     }
 
