@@ -65,6 +65,10 @@ class UserResource extends Resource
 
     public static function canEdit(Model $record): bool
     {
+        if ($record instanceof User && $record->hasRole('super_admin') && ! static::currentUserIsSuperAdmin()) {
+            return false;
+        }
+
         return auth()->user()?->can('users.update') ?? false;
     }
 
@@ -76,6 +80,20 @@ class UserResource extends Resource
     public static function canDeleteAny(): bool
     {
         return false;
+    }
+
+    private static function currentUserIsSuperAdmin(): bool
+    {
+        return auth()->user()?->hasRole('super_admin') ?? false;
+    }
+
+    private static function canManageSensitiveUser(User $record): bool
+    {
+        if ($record->hasRole('super_admin') && ! static::currentUserIsSuperAdmin()) {
+            return false;
+        }
+
+        return auth()->user()?->can('users.update') ?? false;
     }
 
     public static function form(Schema $schema): Schema
@@ -123,16 +141,16 @@ class UserResource extends Resource
                     ->columns(2),
 
                 Section::make('الأدوار')
-                    ->description('ربط المستخدم بالأدوار الإدارية داخل النظام.')
+                    ->description('ربط المستخدم بالأدوار الإدارية داخل النظام. حسابات super_admin محمية من تعديل الأدوار.')
                     ->schema([
                         Select::make('roles')
                             ->label('أدوار المستخدم')
                             ->multiple()
                             ->preload()
                             ->searchable()
-                            ->disabled(fn(?User $record): bool => $record?->id === auth()->id())
+                            ->disabled(fn(?User $record): bool => $record?->id === auth()->id() || ($record?->hasRole('super_admin') ?? false))
                             ->relationship(titleAttribute: 'name')
-                            ->helperText('لحماية النظام، لا يمكن تعديل أدوار حسابك الحالي من هذه الشاشة.'),
+                            ->helperText('لحماية النظام، لا يمكن تعديل أدوار حسابك الحالي أو حسابات super_admin من هذه الشاشة.'),
                     ])
                     ->columns(1),
             ]);
@@ -146,7 +164,10 @@ class UserResource extends Resource
                 TextColumn::make('name')
                     ->label('الاسم')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->description(fn(User $record): ?string => $record->hasRole('super_admin')
+                        ? 'حساب نظام رئيسي - محمي'
+                        : null),
 
                 TextColumn::make('email')
                     ->label('البريد الإلكتروني')
@@ -169,7 +190,7 @@ class UserResource extends Resource
                     ->label('تعديل')
                     ->slideOver()
                     ->modalWidth(Width::FiveExtraLarge)
-                    ->visible(fn(): bool => auth()->user()?->can('users.update') ?? false)
+                    ->visible(fn(User $record): bool => static::canManageSensitiveUser($record))
                     ->successNotificationTitle('تم تحديث المستخدم بنجاح'),
 
                 Action::make('changePassword')
@@ -177,7 +198,7 @@ class UserResource extends Resource
                     ->icon('heroicon-o-key')
                     ->slideOver()
                     ->modalWidth(Width::Large)
-                    ->visible(fn(): bool => auth()->user()?->can('users.update') ?? false)
+                    ->visible(fn(User $record): bool => static::canManageSensitiveUser($record))
                     ->form([
                         TextInput::make('password')
                             ->label('كلمة المرور الجديدة')
