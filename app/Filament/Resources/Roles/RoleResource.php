@@ -64,6 +64,10 @@ class RoleResource extends Resource
 
     public static function canEdit(Model $record): bool
     {
+        if ($record instanceof Role && $record->name === 'super_admin') {
+            return false;
+        }
+
         return auth()->user()?->can('roles.update') ?? false;
     }
 
@@ -102,7 +106,7 @@ class RoleResource extends Resource
                     ->columns(2),
 
                 Section::make('صلاحيات الدور')
-                    ->description('اختر الصلاحيات المرتبطة بهذا الدور.')
+                    ->description('اختر الصلاحيات المرتبطة بهذا الدور. دور super_admin محمي ولا يتم تعديله من الواجهة.')
                     ->schema([
                         Select::make('permissions')
                             ->label('الصلاحيات')
@@ -124,7 +128,10 @@ class RoleResource extends Resource
                 TextColumn::make('name')
                     ->label('اسم الدور')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->description(fn(Role $record): ?string => $record->name === 'super_admin'
+                        ? 'دور النظام الرئيسي - محمي من التعديل'
+                        : null),
 
                 TextColumn::make('guard_name')
                     ->label('الحارس')
@@ -147,7 +154,8 @@ class RoleResource extends Resource
                     ->label('تعديل')
                     ->slideOver()
                     ->modalWidth(Width::FiveExtraLarge)
-                    ->visible(fn(): bool => auth()->user()?->can('roles.update') ?? false)
+                    ->visible(fn(Role $record): bool => $record->name !== 'super_admin'
+                        && (auth()->user()?->can('roles.update') ?? false))
                     ->after(function (): void {
                         app(PermissionRegistrar::class)->forgetCachedPermissions();
                     })
