@@ -85,4 +85,38 @@ return [
             'permissions_help' => 'Example: users.view / users.create / users.update',
         ],
     ],
+
+    'permissions' => [
+        'model' => 'Permission',
+        'plural' => 'Permissions',
+        'navigation' => 'Permissions',
+        'title' => 'Permissions',
+        'heading' => 'Manage Permissions',
+
+        'sections' => [
+            'basic' => [
+                'title' => 'Permission Information',
+                'description' => 'Manage permission names and later assign them to the appropriate roles.',
+            ],
+        ],
+
+        'fields' => [
+            'name' => 'Permission Name',
+            'guard_name' => 'Guard',
+            'roles' => 'Assigned Roles',
+            'created_at' => 'Created At',
+        ],
+
+        'actions' => [
+            'create' => 'Add Permission',
+            'edit' => 'Edit',
+        ],
+
+        'messages' => [
+            'created' => 'Permission created successfully',
+            'updated' => 'Permission updated successfully',
+            'name_placeholder' => 'Example: users.view',
+            'name_help' => 'Use a clear pattern such as: users.view / users.create / users.update.',
+        ],
+    ],
 ];

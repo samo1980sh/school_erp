@@ -14,26 +14,26 @@ class ManagePermissions extends ManageRecords
 
     public function getTitle(): string
     {
-        return 'الصلاحيات';
+        return __('school.permissions.title');
     }
 
     public function getHeading(): string
     {
-        return 'إدارة الصلاحيات';
+        return __('school.permissions.heading');
     }
 
     protected function getHeaderActions(): array
     {
         return [
             CreateAction::make()
-                ->label('إضافة صلاحية')
+                ->label(__('school.permissions.actions.create'))
                 ->slideOver()
                 ->modalWidth(Width::FiveExtraLarge)
                 ->visible(fn(): bool => auth()->user()?->can('permissions.create') ?? false)
                 ->after(function (): void {
                     app(PermissionRegistrar::class)->forgetCachedPermissions();
                 })
-                ->successNotificationTitle('تم إنشاء الصلاحية بنجاح'),
+                ->successNotificationTitle(__('school.permissions.messages.created')),
         ];
     }
 }

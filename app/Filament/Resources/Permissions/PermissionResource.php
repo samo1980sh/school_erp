@@ -23,7 +23,7 @@ class PermissionResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-lock-closed';
 
-    protected static string|UnitEnum|null $navigationGroup = 'إدارة النظام';
+    protected static string|UnitEnum|null $navigationGroup = 'school.navigation.system_management';
 
     protected static ?int $navigationSort = 30;
 
@@ -33,17 +33,22 @@ class PermissionResource extends Resource
 
     public static function getModelLabel(): string
     {
-        return 'صلاحية';
+        return __('school.permissions.model');
     }
 
     public static function getPluralModelLabel(): string
     {
-        return 'الصلاحيات';
+        return __('school.permissions.plural');
     }
 
     public static function getNavigationLabel(): string
     {
-        return 'الصلاحيات';
+        return __('school.permissions.navigation');
+    }
+
+    public static function getNavigationGroup(): ?string
+    {
+        return __('school.navigation.system_management');
     }
 
     public static function shouldRegisterNavigation(): bool
@@ -80,19 +85,19 @@ class PermissionResource extends Resource
     {
         return $schema
             ->components([
-                Section::make('بيانات الصلاحية')
-                    ->description('إدارة أسماء الصلاحيات فقط.')
+                Section::make(__('school.permissions.sections.basic.title'))
+                    ->description(__('school.permissions.sections.basic.description'))
                     ->schema([
                         TextInput::make('name')
-                            ->label('اسم الصلاحية')
+                            ->label(__('school.permissions.fields.name'))
                             ->required()
                             ->unique(table: 'permissions', column: 'name', ignoreRecord: true)
                             ->maxLength(255)
-                            ->placeholder('مثال: users.view')
-                            ->helperText('استخدم نمطًا واضحًا مثل: users.view / users.create / users.update.'),
+                            ->placeholder(__('school.permissions.messages.name_placeholder'))
+                            ->helperText(__('school.permissions.messages.name_help')),
 
                         TextInput::make('guard_name')
-                            ->label('الحارس')
+                            ->label(__('school.permissions.fields.guard_name'))
                             ->default('web')
                             ->required()
                             ->disabled()
@@ -109,36 +114,36 @@ class PermissionResource extends Resource
             ->defaultSort('id', 'asc')
             ->columns([
                 TextColumn::make('name')
-                    ->label('اسم الصلاحية')
+                    ->label(__('school.permissions.fields.name'))
                     ->searchable()
                     ->sortable(),
 
                 TextColumn::make('guard_name')
-                    ->label('الحارس')
+                    ->label(__('school.permissions.fields.guard_name'))
                     ->badge()
                     ->sortable(),
 
                 TextColumn::make('roles.name')
-                    ->label('مرتبطة بالأدوار')
+                    ->label(__('school.permissions.fields.roles'))
                     ->badge()
                     ->separator(',')
                     ->default('—'),
 
                 TextColumn::make('created_at')
-                    ->label('تاريخ الإنشاء')
+                    ->label(__('school.permissions.fields.created_at'))
                     ->dateTime('Y-m-d H:i')
                     ->sortable(),
             ])
             ->recordActions([
                 EditAction::make()
-                    ->label('تعديل')
+                    ->label(__('school.permissions.actions.edit'))
                     ->slideOver()
                     ->modalWidth(Width::FiveExtraLarge)
                     ->visible(fn(): bool => auth()->user()?->can('permissions.update') ?? false)
                     ->after(function (): void {
                         app(PermissionRegistrar::class)->forgetCachedPermissions();
                     })
-                    ->successNotificationTitle('تم تحديث الصلاحية بنجاح'),
+                    ->successNotificationTitle(__('school.permissions.messages.updated')),
             ]);
     }
 

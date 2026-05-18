@@ -85,4 +85,38 @@ return [
             'permissions_help' => 'مثال: users.view / users.create / users.update',
         ],
     ],
+
+    'permissions' => [
+        'model' => 'صلاحية',
+        'plural' => 'الصلاحيات',
+        'navigation' => 'الصلاحيات',
+        'title' => 'الصلاحيات',
+        'heading' => 'إدارة الصلاحيات',
+
+        'sections' => [
+            'basic' => [
+                'title' => 'بيانات الصلاحية',
+                'description' => 'إدارة أسماء الصلاحيات وربطها لاحقًا بالأدوار المناسبة.',
+            ],
+        ],
+
+        'fields' => [
+            'name' => 'اسم الصلاحية',
+            'guard_name' => 'الحارس',
+            'roles' => 'مرتبطة بالأدوار',
+            'created_at' => 'تاريخ الإنشاء',
+        ],
+
+        'actions' => [
+            'create' => 'إضافة صلاحية',
+            'edit' => 'تعديل',
+        ],
+
+        'messages' => [
+            'created' => 'تم إنشاء الصلاحية بنجاح',
+            'updated' => 'تم تحديث الصلاحية بنجاح',
+            'name_placeholder' => 'مثال: users.view',
+            'name_help' => 'استخدم نمطًا واضحًا مثل: users.view / users.create / users.update.',
+        ],
+    ],
 ];
