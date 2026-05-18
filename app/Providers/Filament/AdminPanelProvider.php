@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use Filament\View\PanelsRenderHook;
 use App\Http\Middleware\SetFilamentLocale;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -29,6 +30,15 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login()
+            ->renderHook(
+                PanelsRenderHook::HEAD_END,
+                fn(): string => <<<'HTML'
+                    <script>
+                        document.documentElement.setAttribute('dir', 'rtl');
+                        document.documentElement.setAttribute('lang', 'ar');
+                    </script>
+                HTML
+            )
             ->colors([
                 'primary' => Color::Amber,
             ])
