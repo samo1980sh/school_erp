@@ -27,7 +27,8 @@ class ManageUsers extends ManageRecords
             CreateAction::make()
                 ->label('إضافة مستخدم')
                 ->slideOver()
-                ->modalWidth(Width::FiveExtraLarge),
+                ->modalWidth(Width::FiveExtraLarge)
+                ->visible(fn(): bool => auth()->user()?->can('users.create') ?? false),
         ];
     }
 }

@@ -29,7 +29,10 @@ class ManagePermissions extends ManageRecords
                 ->label('إضافة صلاحية')
                 ->slideOver()
                 ->modalWidth(Width::FiveExtraLarge)
-                ->after(fn(): mixed => app(PermissionRegistrar::class)->forgetCachedPermissions())
+                ->visible(fn(): bool => auth()->user()?->can('permissions.create') ?? false)
+                ->after(function (): void {
+                    app(PermissionRegistrar::class)->forgetCachedPermissions();
+                })
                 ->successNotificationTitle('تم إنشاء الصلاحية بنجاح'),
         ];
     }

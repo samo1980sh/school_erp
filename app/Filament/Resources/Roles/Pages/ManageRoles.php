@@ -29,6 +29,7 @@ class ManageRoles extends ManageRecords
                 ->label('إضافة دور')
                 ->slideOver()
                 ->modalWidth(Width::FiveExtraLarge)
+                ->visible(fn(): bool => auth()->user()?->can('roles.create') ?? false)
                 ->after(function (): void {
                     app(PermissionRegistrar::class)->forgetCachedPermissions();
                 })

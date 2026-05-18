@@ -15,6 +15,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Enums\Width;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Hash;
 use UnitEnum;
 
@@ -45,6 +46,36 @@ class UserResource extends Resource
     public static function getNavigationLabel(): string
     {
         return 'المستخدمون';
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canViewAny();
+    }
+
+    public static function canViewAny(): bool
+    {
+        return auth()->user()?->can('users.view') ?? false;
+    }
+
+    public static function canCreate(): bool
+    {
+        return auth()->user()?->can('users.create') ?? false;
+    }
+
+    public static function canEdit(Model $record): bool
+    {
+        return auth()->user()?->can('users.update') ?? false;
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        return false;
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return false;
     }
 
     public static function form(Schema $schema): Schema
@@ -92,7 +123,7 @@ class UserResource extends Resource
                     ->columns(2),
 
                 Section::make('الأدوار')
-                    ->description('ربط المستخدم بالأدوار الإدارية داخل النظام. الصلاحيات التفصيلية ستضاف لاحقًا في مرحلة مستقلة.')
+                    ->description('ربط المستخدم بالأدوار الإدارية داخل النظام.')
                     ->schema([
                         Select::make('roles')
                             ->label('أدوار المستخدم')
@@ -133,14 +164,12 @@ class UserResource extends Resource
                     ->dateTime('Y-m-d H:i')
                     ->sortable(),
             ])
-            ->filters([
-                //
-            ])
             ->recordActions([
                 EditAction::make()
                     ->label('تعديل')
                     ->slideOver()
                     ->modalWidth(Width::FiveExtraLarge)
+                    ->visible(fn(): bool => auth()->user()?->can('users.update') ?? false)
                     ->successNotificationTitle('تم تحديث المستخدم بنجاح'),
 
                 Action::make('changePassword')
@@ -148,6 +177,7 @@ class UserResource extends Resource
                     ->icon('heroicon-o-key')
                     ->slideOver()
                     ->modalWidth(Width::Large)
+                    ->visible(fn(): bool => auth()->user()?->can('users.update') ?? false)
                     ->form([
                         TextInput::make('password')
                             ->label('كلمة المرور الجديدة')
@@ -173,9 +203,6 @@ class UserResource extends Resource
                         ])->save();
                     })
                     ->successNotificationTitle('تم تغيير كلمة المرور بنجاح'),
-            ])
-            ->toolbarActions([
-                //
             ]);
     }
 

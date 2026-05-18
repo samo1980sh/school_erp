@@ -13,6 +13,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Enums\Width;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 use UnitEnum;
@@ -46,6 +47,36 @@ class RoleResource extends Resource
         return 'الأدوار';
     }
 
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canViewAny();
+    }
+
+    public static function canViewAny(): bool
+    {
+        return auth()->user()?->can('roles.view') ?? false;
+    }
+
+    public static function canCreate(): bool
+    {
+        return auth()->user()?->can('roles.create') ?? false;
+    }
+
+    public static function canEdit(Model $record): bool
+    {
+        return auth()->user()?->can('roles.update') ?? false;
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        return false;
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return false;
+    }
+
     public static function form(Schema $schema): Schema
     {
         return $schema
@@ -71,7 +102,7 @@ class RoleResource extends Resource
                     ->columns(2),
 
                 Section::make('صلاحيات الدور')
-                    ->description('اختر الصلاحيات المرتبطة بهذا الدور. سيتم تطبيقها لاحقًا عند إضافة Policies وحماية الموارد.')
+                    ->description('اختر الصلاحيات المرتبطة بهذا الدور.')
                     ->schema([
                         Select::make('permissions')
                             ->label('الصلاحيات')
@@ -111,21 +142,16 @@ class RoleResource extends Resource
                     ->dateTime('Y-m-d H:i')
                     ->sortable(),
             ])
-            ->filters([
-                //
-            ])
             ->recordActions([
                 EditAction::make()
                     ->label('تعديل')
                     ->slideOver()
                     ->modalWidth(Width::FiveExtraLarge)
+                    ->visible(fn(): bool => auth()->user()?->can('roles.update') ?? false)
                     ->after(function (): void {
                         app(PermissionRegistrar::class)->forgetCachedPermissions();
                     })
                     ->successNotificationTitle('تم تحديث الدور بنجاح'),
-            ])
-            ->toolbarActions([
-                //
             ]);
     }
 

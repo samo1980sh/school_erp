@@ -12,6 +12,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Enums\Width;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\PermissionRegistrar;
 use UnitEnum;
@@ -45,12 +46,42 @@ class PermissionResource extends Resource
         return 'الصلاحيات';
     }
 
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canViewAny();
+    }
+
+    public static function canViewAny(): bool
+    {
+        return auth()->user()?->can('permissions.view') ?? false;
+    }
+
+    public static function canCreate(): bool
+    {
+        return auth()->user()?->can('permissions.create') ?? false;
+    }
+
+    public static function canEdit(Model $record): bool
+    {
+        return auth()->user()?->can('permissions.update') ?? false;
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        return false;
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return false;
+    }
+
     public static function form(Schema $schema): Schema
     {
         return $schema
             ->components([
                 Section::make('بيانات الصلاحية')
-                    ->description('إدارة أسماء الصلاحيات فقط. ربط الصلاحيات بالأدوار سيتم في مرحلة مستقلة.')
+                    ->description('إدارة أسماء الصلاحيات فقط.')
                     ->schema([
                         TextInput::make('name')
                             ->label('اسم الصلاحية')
@@ -98,19 +129,16 @@ class PermissionResource extends Resource
                     ->dateTime('Y-m-d H:i')
                     ->sortable(),
             ])
-            ->filters([
-                //
-            ])
             ->recordActions([
                 EditAction::make()
                     ->label('تعديل')
                     ->slideOver()
                     ->modalWidth(Width::FiveExtraLarge)
-                    ->after(fn(): mixed => app(PermissionRegistrar::class)->forgetCachedPermissions())
+                    ->visible(fn(): bool => auth()->user()?->can('permissions.update') ?? false)
+                    ->after(function (): void {
+                        app(PermissionRegistrar::class)->forgetCachedPermissions();
+                    })
                     ->successNotificationTitle('تم تحديث الصلاحية بنجاح'),
-            ])
-            ->toolbarActions([
-                //
             ]);
     }
 
