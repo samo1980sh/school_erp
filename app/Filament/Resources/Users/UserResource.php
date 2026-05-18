@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Users;
 use App\Filament\Resources\Users\Pages\ManageUsers;
 use App\Models\User;
 use BackedEnum;
+use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
@@ -13,6 +14,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Enums\Width;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\Hash;
 use UnitEnum;
 
 class UserResource extends Resource
@@ -69,7 +71,20 @@ class UserResource extends Resource
                             ->password()
                             ->revealable()
                             ->required(fn(string $operation): bool => $operation === 'create')
-                            ->saved(fn(?string $state): bool => filled($state))
+                            ->visible(fn(string $operation): bool => $operation === 'create')
+                            ->confirmed()
+                            ->dehydrated(fn(?string $state): bool => filled($state))
+                            ->dehydrateStateUsing(fn(string $state): string => Hash::make($state))
+                            ->minLength(8)
+                            ->maxLength(255),
+
+                        TextInput::make('password_confirmation')
+                            ->label('تأكيد كلمة المرور')
+                            ->password()
+                            ->revealable()
+                            ->required(fn(string $operation): bool => $operation === 'create')
+                            ->visible(fn(string $operation): bool => $operation === 'create')
+                            ->dehydrated(false)
                             ->minLength(8)
                             ->maxLength(255),
                     ])
@@ -109,7 +124,39 @@ class UserResource extends Resource
                 EditAction::make()
                     ->label('تعديل')
                     ->slideOver()
-                    ->modalWidth(Width::FiveExtraLarge),
+                    ->modalWidth(Width::FiveExtraLarge)
+                    ->successNotificationTitle('تم تحديث المستخدم بنجاح'),
+
+                Action::make('changePassword')
+                    ->label('تغيير كلمة المرور')
+                    ->icon('heroicon-o-key')
+                    ->slideOver()
+                    ->modalWidth(Width::Large)
+                    ->form([
+                        TextInput::make('password')
+                            ->label('كلمة المرور الجديدة')
+                            ->password()
+                            ->revealable()
+                            ->required()
+                            ->confirmed()
+                            ->minLength(8)
+                            ->maxLength(255),
+
+                        TextInput::make('password_confirmation')
+                            ->label('تأكيد كلمة المرور الجديدة')
+                            ->password()
+                            ->revealable()
+                            ->required()
+                            ->dehydrated(false)
+                            ->minLength(8)
+                            ->maxLength(255),
+                    ])
+                    ->action(function (User $record, array $data): void {
+                        $record->forceFill([
+                            'password' => Hash::make($data['password']),
+                        ])->save();
+                    })
+                    ->successNotificationTitle('تم تغيير كلمة المرور بنجاح'),
             ])
             ->toolbarActions([
                 //
