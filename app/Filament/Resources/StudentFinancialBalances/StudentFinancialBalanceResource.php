@@ -6,9 +6,13 @@ namespace App\Filament\Resources\StudentFinancialBalances;
 
 use App\Filament\Resources\StudentFinancialBalances\Pages\ManageStudentFinancialBalances;
 use App\Models\AcademicYear;
+use App\Models\StudentFee;
 use App\Models\StudentFinancialBalance;
+use App\Models\StudentPayment;
 use BackedEnum;
+use Filament\Actions\Action;
 use Filament\Resources\Resource;
+use Filament\Support\Enums\Width;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -44,12 +48,12 @@ class StudentFinancialBalanceResource extends Resource
 
     public static function getNavigationLabel(): string
     {
-        return app()->getLocale() === 'en' ? 'Student Balances' : 'أرصدة الطلاب';
+        return self::label('أرصدة الطلاب', 'Student balances');
     }
 
     public static function getNavigationGroup(): ?string
     {
-        return app()->getLocale() === 'en' ? 'Finance & Fees' : 'المالية والرسوم';
+        return self::label('المالية والرسوم', 'Finance & Fees');
     }
 
     public static function shouldRegisterNavigation(): bool
@@ -59,7 +63,8 @@ class StudentFinancialBalanceResource extends Resource
 
     public static function canViewAny(): bool
     {
-        return auth()->user()?->can('fees.reports') || auth()->user()?->can('fees.view') || false;
+        return (auth()->user()?->can('fees.reports') ?? false)
+            || (auth()->user()?->can('fees.view') ?? false);
     }
 
     public static function canCreate(): bool
@@ -96,7 +101,8 @@ class StudentFinancialBalanceResource extends Resource
                     ->searchable()
                     ->sortable()
                     ->copyable()
-                    ->extraAttributes(self::ltrAttributes()),
+                    ->formatStateUsing(fn ($state): string => self::ltrText($state))
+                    ->html(),
 
                 TextColumn::make('student_name')
                     ->label(self::label('الطالب', 'Student'))
@@ -114,20 +120,23 @@ class StudentFinancialBalanceResource extends Resource
 
                 TextColumn::make('total_fees')
                     ->label(self::label('إجمالي الرسوم', 'Total fees'))
-                    ->money('SYP')
+                    ->formatStateUsing(fn ($state): string => self::money($state))
+                    ->html()
                     ->alignEnd()
                     ->sortable(),
 
                 TextColumn::make('total_paid')
                     ->label(self::label('إجمالي المدفوع', 'Total paid'))
-                    ->money('SYP')
+                    ->formatStateUsing(fn ($state): string => self::money($state))
+                    ->html()
                     ->alignEnd()
                     ->color('success')
                     ->sortable(),
 
                 TextColumn::make('total_remaining')
                     ->label(self::label('المتبقي', 'Remaining'))
-                    ->money('SYP')
+                    ->formatStateUsing(fn ($state): string => self::money($state))
+                    ->html()
                     ->alignEnd()
                     ->color(fn (StudentFinancialBalance $record): string => (float) $record->total_remaining > 0 ? 'danger' : 'success')
                     ->sortable(),
@@ -150,7 +159,7 @@ class StudentFinancialBalanceResource extends Resource
                     ->badge()
                     ->color(fn (StudentFinancialBalance $record): string => (int) $record->overdue_fees_count > 0 ? 'danger' : 'gray')
                     ->alignCenter()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->toggleable(),
             ])
             ->filters([
                 SelectFilter::make('academic_year_id')
@@ -179,6 +188,23 @@ class StudentFinancialBalanceResource extends Resource
                         };
                     })
                     ->native(false),
+            ])
+            ->recordActions([
+                Action::make('viewDetails')
+                    ->label(self::label('عرض التفاصيل', 'View details'))
+                    ->icon('heroicon-o-eye')
+                    ->color('primary')
+                    ->slideOver()
+                    ->modalWidth(Width::SevenExtraLarge)
+                    ->modalHeading(fn (StudentFinancialBalance $record): string => self::label('تفاصيل رصيد الطالب: ', 'Student balance details: ') . $record->student_name)
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel(self::label('إغلاق', 'Close'))
+                    ->modalContent(fn (StudentFinancialBalance $record) => view('filament.finance.student-balance-details', [
+                        'record' => $record,
+                        'fees' => self::studentFees($record),
+                        'payments' => self::studentPayments($record),
+                    ]))
+                    ->visible(fn (): bool => static::canViewAny()),
             ])
             ->emptyStateHeading(self::label('لا توجد أرصدة طلاب', 'No student balances found'))
             ->emptyStateDescription(self::label(
@@ -224,12 +250,48 @@ class StudentFinancialBalanceResource extends Resource
         };
     }
 
-    public static function ltrAttributes(): array
+    public static function money(mixed $value): string
     {
-        return [
-            'dir' => 'ltr',
-            'style' => 'unicode-bidi: plaintext; text-align: left; display: inline-block;',
-        ];
+        $amount = (float) $value;
+
+        return '<span dir="ltr" style="unicode-bidi: plaintext; text-align: left; display: inline-block;">'
+            . e(number_format($amount, 0))
+            . ' SYP</span>';
+    }
+
+    public static function ltrText(mixed $value): string
+    {
+        $value = trim((string) $value);
+
+        if ($value === '') {
+            return '—';
+        }
+
+        return '<span dir="ltr" style="unicode-bidi: plaintext; text-align: left; display: inline-block;">'
+            . e($value)
+            . '</span>';
+    }
+
+    public static function studentFees(StudentFinancialBalance $record)
+    {
+        return StudentFee::query()
+            ->with(['feeType:id,name,code'])
+            ->where('student_id', $record->student_id)
+            ->where('academic_year_id', $record->academic_year_id)
+            ->orderBy('due_on')
+            ->orderBy('id')
+            ->get();
+    }
+
+    public static function studentPayments(StudentFinancialBalance $record)
+    {
+        return StudentPayment::query()
+            ->with(['studentFee:id,fee_number,fee_type_id', 'studentFee.feeType:id,name,code'])
+            ->where('student_id', $record->student_id)
+            ->where('academic_year_id', $record->academic_year_id)
+            ->orderByDesc('paid_on')
+            ->orderByDesc('id')
+            ->get();
     }
 
     private static function label(string $ar, string $en): string

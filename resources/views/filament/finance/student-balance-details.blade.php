@@ -51,14 +51,17 @@ default => (string) $method,
     .finance-details-wrap {
         display: flex;
         flex-direction: column;
-        gap: 1.25rem;
+        gap: 1rem;
         width: 100%;
+        font-family: inherit;
+        font-size: 0.875rem;
+        color: #111827;
     }
 
     .finance-summary-card,
     .finance-section {
         border: 1px solid #e5e7eb;
-        border-radius: 16px;
+        border-radius: 0.75rem;
         background: #ffffff;
         overflow: hidden;
     }
@@ -66,54 +69,56 @@ default => (string) $method,
     .finance-summary-grid {
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 16px;
-        padding: 18px;
+        gap: 0.75rem;
+        padding: 1rem;
     }
 
     .finance-summary-item {
         border: 1px solid #eef2f7;
-        border-radius: 14px;
-        padding: 14px;
+        border-radius: 0.65rem;
+        padding: 0.85rem;
         background: #f9fafb;
     }
 
     .finance-summary-label {
-        font-size: 12px;
+        font-size: 0.75rem;
         color: #6b7280;
-        margin-bottom: 6px;
+        margin-bottom: 0.25rem;
+        line-height: 1.5;
     }
 
     .finance-summary-value {
-        font-size: 15px;
-        font-weight: 700;
+        font-size: 0.9rem;
+        font-weight: 600;
         color: #111827;
-        line-height: 1.7;
+        line-height: 1.6;
     }
 
     .finance-summary-sub {
-        font-size: 13px;
+        font-size: 0.8125rem;
         color: #6b7280;
-        margin-top: 2px;
+        margin-top: 0.15rem;
     }
 
     .finance-section-header {
-        padding: 16px 18px;
+        padding: 0.9rem 1rem;
         border-bottom: 1px solid #e5e7eb;
         background: #f9fafb;
     }
 
     .finance-section-title {
-        font-size: 16px;
-        font-weight: 800;
+        font-size: 0.95rem;
+        font-weight: 700;
         color: #111827;
         margin: 0;
+        line-height: 1.6;
     }
 
     .finance-section-desc {
-        font-size: 13px;
+        font-size: 0.8125rem;
         color: #6b7280;
-        margin-top: 6px;
-        line-height: 1.8;
+        margin-top: 0.35rem;
+        line-height: 1.7;
     }
 
     .finance-table-scroll {
@@ -124,26 +129,26 @@ default => (string) $method,
     .finance-table {
         width: 100%;
         border-collapse: collapse;
-        font-size: 13px;
+        font-size: 0.8125rem;
         min-width: 980px;
     }
 
     .finance-table th {
         background: #ffffff;
         color: #374151;
-        font-weight: 800;
+        font-weight: 600;
         text-align: start;
-        padding: 12px 14px;
+        padding: 0.7rem 0.85rem;
         border-bottom: 1px solid #e5e7eb;
         white-space: nowrap;
     }
 
     .finance-table td {
-        padding: 12px 14px;
+        padding: 0.7rem 0.85rem;
         border-bottom: 1px solid #f1f5f9;
         color: #111827;
         vertical-align: top;
-        line-height: 1.7;
+        line-height: 1.6;
     }
 
     .finance-table tr:last-child td {
@@ -160,17 +165,17 @@ default => (string) $method,
         display: inline-block;
         text-align: left;
         white-space: nowrap;
-        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+        font-family: inherit;
     }
 
     .finance-money-success {
         color: #047857;
-        font-weight: 700;
+        font-weight: 600;
     }
 
     .finance-money-danger {
         color: #dc2626;
-        font-weight: 700;
+        font-weight: 600;
     }
 
     .finance-badge {
@@ -178,10 +183,11 @@ default => (string) $method,
         align-items: center;
         justify-content: center;
         border-radius: 999px;
-        padding: 3px 9px;
-        font-size: 12px;
-        font-weight: 700;
+        padding: 0.15rem 0.5rem;
+        font-size: 0.75rem;
+        font-weight: 600;
         white-space: nowrap;
+        line-height: 1.4;
     }
 
     .finance-badge-success {
@@ -209,10 +215,10 @@ default => (string) $method,
     }
 
     .finance-empty {
-        padding: 28px;
+        padding: 1.5rem;
         text-align: center;
         color: #6b7280;
-        font-size: 14px;
+        font-size: 0.875rem;
     }
 
     @media (max-width: 1024px) {
@@ -227,7 +233,6 @@ default => (string) $method,
         }
     }
 </style>
-
 <div class="finance-details-wrap">
     <div class="finance-summary-card">
         <div class="finance-summary-grid">
