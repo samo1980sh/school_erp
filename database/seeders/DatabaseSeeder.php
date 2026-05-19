@@ -29,6 +29,7 @@ class DatabaseSeeder extends Seeder
             SubjectCurriculumSeeder::class,
             StudentFoundationSeeder::class,
             GuardianFoundationSeeder::class,
+            TeacherFoundationSeeder::class,
         ]);
     }
 }
