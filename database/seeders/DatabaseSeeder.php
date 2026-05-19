@@ -30,6 +30,7 @@ class DatabaseSeeder extends Seeder
             StudentFoundationSeeder::class,
             GuardianFoundationSeeder::class,
             TeacherFoundationSeeder::class,
+            EmployeeFoundationSeeder::class,
         ]);
     }
 }
