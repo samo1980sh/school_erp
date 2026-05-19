@@ -6,9 +6,11 @@ namespace App\Filament\Resources\Roles;
 
 use App\Filament\Resources\Roles\Pages\ManageRoles;
 use App\Support\Rbac\RbacPermissionMetadata;
+use App\Support\Rbac\RbacRoleMetadata;
 use BackedEnum;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
@@ -32,7 +34,7 @@ class RoleResource extends Resource
 
     protected static ?int $navigationSort = 20;
 
-    protected static ?string $recordTitleAttribute = 'name';
+    protected static ?string $recordTitleAttribute = 'display_name';
 
     protected static bool $hasTitleCaseModelLabel = false;
 
@@ -94,12 +96,62 @@ class RoleResource extends Resource
     {
         return $schema
             ->components([
-                Section::make(self::label('بيانات الدور', 'Role details'))
+                Section::make(self::label('المعاينة الإنكليزية', 'English display preview'))
                     ->description(self::label(
-                        'عرّف اسم الدور والحارس المستخدم. في هذه المرحلة كل الأدوار تعمل على guard واحد فقط وهو web.',
-                        'Define the role name and guard. At this stage all roles use only the web guard.'
+                        'تظهر هذه المعاينة عند استخدام الواجهة الإنكليزية فقط، بدون تغيير القيم العربية المخزنة في قاعدة البيانات.',
+                        'This preview is shown for the English interface without changing the Arabic values stored in the database.'
                     ))
                     ->schema([
+                        TextInput::make('localized_display_name_preview')
+                            ->label(self::label('الاسم المعروض', 'Displayed name'))
+                            ->disabled()
+                            ->dehydrated(false)
+                            ->formatStateUsing(fn (?Role $record): ?string => $record
+                                ? RbacRoleMetadata::displayName($record)
+                                : null),
+
+                        Textarea::make('localized_description_preview')
+                            ->label(self::label('الوصف المعروض', 'Displayed description'))
+                            ->rows(3)
+                            ->disabled()
+                            ->dehydrated(false)
+                            ->formatStateUsing(fn (?Role $record): ?string => $record
+                                ? RbacRoleMetadata::description($record)
+                                : null),
+                    ])
+                    ->columns([
+                        'default' => 1,
+                        'lg' => 2,
+                    ])
+                    ->visible(fn (): bool => app()->getLocale() === 'en'),
+
+                Section::make(self::label('بيانات الدور', 'Role details'))
+                    ->description(self::label(
+                        'عرّف اسم الدور وترتيبه ووصفه. الاسم التقني يبقى مرتبطًا بمنطق الصلاحيات داخل النظام.',
+                        'Define the role name, order, and description. The technical name remains tied to authorization logic.'
+                    ))
+                    ->schema([
+                        TextInput::make('sort_order')
+                            ->label(self::label('ترتيب العرض', 'Display order'))
+                            ->numeric()
+                            ->rules(['integer', 'min:0'])
+                            ->default(fn (): int => self::nextSortOrder())
+                            ->required()
+                            ->helperText(self::label(
+                                'يستخدم لترتيب الأدوار في الجداول والقوائم.',
+                                'Used to order roles in tables and lists.'
+                            )),
+
+                        TextInput::make('display_name')
+                            ->label(self::label('الاسم المقروء المخزن', 'Stored readable name'))
+                            ->required()
+                            ->maxLength(255)
+                            ->placeholder(self::label('مثال: مدير المدرسة', 'Example: School Administrator'))
+                            ->helperText(self::label(
+                                'القيمة العربية المخزنة في قاعدة البيانات. عند الواجهة الإنكليزية يتم عرض الترجمة من ملف lang/en/rbac_roles.php.',
+                                'The Arabic value stored in the database. In the English interface, the translation is displayed from lang/en/rbac_roles.php.'
+                            )),
+
                         TextInput::make('name')
                             ->label(__('school.roles.fields.name'))
                             ->required()
@@ -108,10 +160,9 @@ class RoleResource extends Resource
                             ->maxLength(255)
                             ->placeholder('school_admin')
                             ->helperText(self::label(
-                                'استخدم اسمًا تقنيًا واضحًا مثل: school_admin أو academic_manager.',
-                                'Use a clear technical name such as school_admin or academic_manager.'
-                            ))
-                            ->autofocus(),
+                                'اسم تقني مستخدم في الكود. لا تعدّله إلا عند الحاجة الفعلية.',
+                                'Technical name used in code. Do not change it unless really needed.'
+                            )),
 
                         TextInput::make('guard_name')
                             ->label(__('school.roles.fields.guard_name'))
@@ -127,7 +178,24 @@ class RoleResource extends Resource
                     ])
                     ->columns([
                         'default' => 1,
-                        'md' => 2,
+                        'lg' => 2,
+                    ]),
+
+                Section::make(self::label('شرح الدور', 'Role explanation'))
+                    ->description(self::label(
+                        'الوصف يساعد العميل على فهم وظيفة الدور قبل ربطه بالمستخدمين.',
+                        'The description helps the client understand the role before assigning it to users.'
+                    ))
+                    ->schema([
+                        Textarea::make('description')
+                            ->label(self::label('الوصف المخزن', 'Stored description'))
+                            ->required()
+                            ->rows(5)
+                            ->maxLength(1000)
+                            ->helperText(self::label(
+                                'هذا النص هو القيمة المخزنة في قاعدة البيانات. عند الواجهة الإنكليزية يتم عرض الترجمة من ملف lang/en/rbac_roles.php.',
+                                'This text is the value stored in the database. In the English interface, the translation is displayed from lang/en/rbac_roles.php.'
+                            )),
                     ]),
 
                 Section::make(self::label('صلاحيات الدور', 'Role permissions'))
@@ -142,7 +210,7 @@ class RoleResource extends Resource
                             ->preload()
                             ->searchable()
                             ->relationship(name: 'permissions', titleAttribute: 'display_name')
-                            ->options(fn(): array => RbacPermissionMetadata::groupedSelectOptions())
+                            ->options(fn (): array => RbacPermissionMetadata::groupedSelectOptions())
                             ->helperText(self::label(
                                 'يمكنك البحث باسم الصلاحية المقروء أو الاسم التقني أو الوصف. لا تمنح الدور أكثر مما يحتاج فعليًا.',
                                 'You can search by readable name, technical name, or description. Do not grant more permissions than the role actually needs.'
@@ -157,27 +225,44 @@ class RoleResource extends Resource
     {
         return $table
             ->modifyQueryUsing(
-                fn(Builder $query): Builder => $query
+                fn (Builder $query): Builder => $query
                     ->with([
-                        'permissions' => fn($permissionsQuery) => $permissionsQuery
+                        'permissions' => fn ($permissionsQuery) => $permissionsQuery
                             ->orderBy('group_name')
                             ->orderBy('sort_order')
                             ->orderBy('name'),
                     ])
                     ->withCount('permissions')
-                    ->orderBy('id')
+                    ->orderBy('sort_order')
+                    ->orderBy('name')
             )
             ->columns([
-                TextColumn::make('name')
-                    ->label(__('school.roles.fields.name'))
-                    ->searchable()
+                TextColumn::make('display_name')
+                    ->label(self::label('الدور', 'Role'))
+                    ->state(fn (Role $record): string => RbacRoleMetadata::displayName($record))
+                    ->searchable(['display_name', 'name', 'description'])
                     ->sortable()
                     ->weight('bold')
-                    ->description(
-                        fn(Role $record): ?string => $record->name === 'super_admin'
-                            ? __('school.roles.messages.protected_super_admin')
-                            : null
-                    ),
+                    ->description(fn (Role $record): ?string => self::roleDescriptionLine($record))
+                    ->wrap(),
+
+                TextColumn::make('name')
+                    ->label(self::label('الاسم التقني', 'Technical name'))
+                    ->badge()
+                    ->color('gray')
+                    ->copyable()
+                    ->searchable()
+                    ->sortable(),
+
+                TextColumn::make('description')
+                    ->label(self::label('الوصف', 'Description'))
+                    ->state(fn (Role $record): string => RbacRoleMetadata::description($record))
+                    ->wrap()
+                    ->limit(120)
+                    ->tooltip(fn (Role $record): ?string => filled(RbacRoleMetadata::description($record))
+                        ? RbacRoleMetadata::description($record)
+                        : null)
+                    ->toggleable(),
 
                 TextColumn::make('permissions_count')
                     ->label(self::label('عدد الصلاحيات', 'Permissions count'))
@@ -188,10 +273,16 @@ class RoleResource extends Resource
 
                 TextColumn::make('permissions_overview')
                     ->label(self::label('ملخص الصلاحيات', 'Permissions overview'))
-                    ->state(fn(Role $record): string => RbacPermissionMetadata::rolePermissionsOverviewHtml($record))
+                    ->state(fn (Role $record): string => RbacPermissionMetadata::rolePermissionsOverviewHtml($record))
                     ->html()
                     ->wrap()
                     ->toggleable(),
+
+                TextColumn::make('sort_order')
+                    ->label(self::label('الترتيب', 'Order'))
+                    ->alignCenter()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('guard_name')
                     ->label(__('school.roles.fields.guard_name'))
@@ -212,7 +303,7 @@ class RoleResource extends Resource
                     ->slideOver()
                     ->modalWidth(Width::SevenExtraLarge)
                     ->visible(
-                        fn(Role $record): bool => $record->name !== 'super_admin'
+                        fn (Role $record): bool => $record->name !== 'super_admin'
                             && (auth()->user()?->can('roles.update') ?? false)
                     )
                     ->after(function (): void {
@@ -237,6 +328,28 @@ class RoleResource extends Resource
         return [
             'index' => ManageRoles::route('/'),
         ];
+    }
+
+    private static function nextSortOrder(): int
+    {
+        return ((int) Role::query()->max('sort_order')) + 10;
+    }
+
+    private static function roleDescriptionLine(Role $record): ?string
+    {
+        $items = [];
+
+        if ($record->name === 'super_admin') {
+            $items[] = __('school.roles.messages.protected_super_admin');
+        }
+
+        $description = RbacRoleMetadata::description($record);
+
+        if ($description !== '') {
+            $items[] = $description;
+        }
+
+        return $items === [] ? null : implode(' • ', $items);
     }
 
     private static function label(string $ar, string $en): string
