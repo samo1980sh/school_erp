@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Filament\Resources\Roles;
 
 use App\Filament\Resources\Roles\Pages\ManageRoles;
@@ -13,7 +15,9 @@ use Filament\Schemas\Schema;
 use Filament\Support\Enums\Width;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 use UnitEnum;
@@ -90,14 +94,23 @@ class RoleResource extends Resource
     {
         return $schema
             ->components([
-                Section::make(__('school.roles.sections.basic.title'))
-                    ->description(__('school.roles.sections.basic.description'))
+                Section::make(self::label('بيانات الدور', 'Role details'))
+                    ->description(self::label(
+                        'عرّف اسم الدور والحارس المستخدم. في هذه المرحلة كل الأدوار تعمل على guard واحد فقط وهو web.',
+                        'Define the role name and guard. At this stage all roles use only the web guard.'
+                    ))
                     ->schema([
                         TextInput::make('name')
                             ->label(__('school.roles.fields.name'))
                             ->required()
                             ->unique(table: 'roles', column: 'name', ignoreRecord: true)
+                            ->rules(['regex:/^[a-z0-9_.-]+$/'])
                             ->maxLength(255)
+                            ->placeholder('school_admin')
+                            ->helperText(self::label(
+                                'استخدم اسمًا تقنيًا واضحًا مثل: school_admin أو academic_manager.',
+                                'Use a clear technical name such as school_admin or academic_manager.'
+                            ))
                             ->autofocus(),
 
                         TextInput::make('guard_name')
@@ -106,23 +119,34 @@ class RoleResource extends Resource
                             ->required()
                             ->disabled()
                             ->dehydrated()
-                            ->maxLength(255),
+                            ->maxLength(255)
+                            ->helperText(self::label(
+                                'يجب أن يبقى web. لا نستخدم Shield ولا Multiple Guards الآن.',
+                                'Must remain web. Shield and multiple guards are not used now.'
+                            )),
                     ])
                     ->columns([
                         'default' => 1,
                         'md' => 2,
                     ]),
 
-                Section::make(__('school.roles.sections.permissions.title'))
-                    ->description(__('school.roles.sections.permissions.description'))
+                Section::make(self::label('صلاحيات الدور', 'Role permissions'))
+                    ->description(self::label(
+                        'اختر الصلاحيات المناسبة لهذا الدور. الصلاحيات مرتبة ضمن مجموعات واضحة مع إظهار الاسم المقروء والاسم التقني.',
+                        'Choose the permissions for this role. Permissions are grouped clearly and show both readable and technical names.'
+                    ))
                     ->schema([
                         Select::make('permissions')
                             ->label(__('school.roles.fields.permissions'))
                             ->multiple()
                             ->preload()
-                            ->searchable()
-                            ->relationship(titleAttribute: 'name')
-                            ->helperText(__('school.roles.messages.permissions_help'))
+                            ->searchable(['name', 'display_name', 'description'])
+                            ->relationship(name: 'permissions', titleAttribute: 'display_name')
+                            ->options(fn(): array => self::permissionSelectOptions())
+                            ->helperText(self::label(
+                                'يمكنك البحث باسم الصلاحية المقروء أو الاسم التقني أو الوصف. لا تمنح الدور أكثر مما يحتاج فعليًا.',
+                                'You can search by readable name, technical name, or description. Do not grant more permissions than the role actually needs.'
+                            ))
                             ->columnSpanFull(),
                     ])
                     ->columns(1),
@@ -132,44 +156,75 @@ class RoleResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->defaultSort('id', 'asc')
+            ->modifyQueryUsing(
+                fn(Builder $query): Builder => $query
+                    ->with([
+                        'permissions' => fn($permissionsQuery) => $permissionsQuery
+                            ->orderBy('group_name')
+                            ->orderBy('sort_order')
+                            ->orderBy('name'),
+                    ])
+                    ->withCount('permissions')
+                    ->orderBy('id')
+            )
             ->columns([
                 TextColumn::make('name')
                     ->label(__('school.roles.fields.name'))
                     ->searchable()
                     ->sortable()
-                    ->description(fn(Role $record): ?string => $record->name === 'super_admin'
-                        ? __('school.roles.messages.protected_super_admin')
-                        : null),
+                    ->weight('bold')
+                    ->description(
+                        fn(Role $record): ?string => $record->name === 'super_admin'
+                            ? __('school.roles.messages.protected_super_admin')
+                            : null
+                    ),
+
+                TextColumn::make('permissions_count')
+                    ->label(self::label('عدد الصلاحيات', 'Permissions count'))
+                    ->badge()
+                    ->color('success')
+                    ->alignCenter()
+                    ->sortable(),
+
+                TextColumn::make('permissions_overview')
+                    ->label(self::label('ملخص الصلاحيات', 'Permissions overview'))
+                    ->state(fn(Role $record): string => self::permissionsOverview($record))
+                    ->html()
+                    ->wrap()
+                    ->toggleable(),
 
                 TextColumn::make('guard_name')
                     ->label(__('school.roles.fields.guard_name'))
                     ->badge()
-                    ->sortable(),
-
-                TextColumn::make('permissions.name')
-                    ->label(__('school.roles.fields.permissions'))
-                    ->badge()
-                    ->separator(',')
-                    ->default('—'),
+                    ->color('gray')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('created_at')
                     ->label(__('school.roles.fields.created_at'))
                     ->dateTime('Y-m-d H:i')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->recordActions([
                 EditAction::make()
                     ->label(__('school.roles.actions.edit'))
                     ->slideOver()
                     ->modalWidth(Width::SevenExtraLarge)
-                    ->visible(fn(Role $record): bool => $record->name !== 'super_admin'
-                        && (auth()->user()?->can('roles.update') ?? false))
+                    ->visible(
+                        fn(Role $record): bool => $record->name !== 'super_admin'
+                            && (auth()->user()?->can('roles.update') ?? false)
+                    )
                     ->after(function (): void {
                         app(PermissionRegistrar::class)->forgetCachedPermissions();
                     })
                     ->successNotificationTitle(__('school.roles.messages.updated')),
-            ]);
+            ])
+            ->emptyStateHeading(self::label('لا توجد أدوار', 'No roles found'))
+            ->emptyStateDescription(self::label(
+                'لم يتم العثور على أدوار مطابقة للبحث الحالي.',
+                'No roles match the current search.'
+            ));
     }
 
     public static function getRelations(): array
@@ -182,5 +237,81 @@ class RoleResource extends Resource
         return [
             'index' => ManageRoles::route('/'),
         ];
+    }
+
+    private static function permissionSelectOptions(): array
+    {
+        return Permission::query()
+            ->where('guard_name', 'web')
+            ->orderBy('group_name')
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get()
+            ->groupBy(fn(Permission $permission): string => filled($permission->group_name)
+                ? (string) $permission->group_name
+                : self::label('غير مصنفة', 'Ungrouped'))
+            ->mapWithKeys(function ($permissions, string $groupName): array {
+                return [
+                    $groupName => $permissions
+                        ->mapWithKeys(fn(Permission $permission): array => [
+                            $permission->getKey() => self::permissionOptionLabel($permission),
+                        ])
+                        ->toArray(),
+                ];
+            })
+            ->toArray();
+    }
+
+    private static function permissionOptionLabel(Permission $permission): string
+    {
+        $displayName = trim((string) ($permission->display_name ?: $permission->name));
+        $technicalName = trim((string) $permission->name);
+
+        if ($displayName === $technicalName) {
+            return $technicalName;
+        }
+
+        return "{$displayName} — {$technicalName}";
+    }
+
+    private static function permissionsOverview(Role $record): string
+    {
+        $permissions = $record->permissions;
+
+        if ($permissions->isEmpty()) {
+            return '<span class="text-gray-500">—</span>';
+        }
+
+        return $permissions
+            ->groupBy(fn(Permission $permission): string => filled($permission->group_name)
+                ? (string) $permission->group_name
+                : self::label('غير مصنفة', 'Ungrouped'))
+            ->map(function ($items, string $groupName): string {
+                $visibleItems = $items
+                    ->take(4)
+                    ->map(fn(Permission $permission): string => e(
+                        (string) ($permission->display_name ?: $permission->name)
+                    ))
+                    ->implode('، ');
+
+                $remainingCount = $items->count() - 4;
+
+                $moreText = $remainingCount > 0
+                    ? self::label(" +{$remainingCount} صلاحيات أخرى", " +{$remainingCount} more")
+                    : '';
+
+                return sprintf(
+                    '<div class="mb-1"><strong>%s</strong><span class="text-gray-500">: %s%s</span></div>',
+                    e($groupName),
+                    $visibleItems,
+                    e($moreText)
+                );
+            })
+            ->implode('');
+    }
+
+    private static function label(string $ar, string $en): string
+    {
+        return app()->getLocale() === 'en' ? $en : $ar;
     }
 }
