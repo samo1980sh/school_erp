@@ -7,6 +7,7 @@ namespace App\Filament\Resources\Permissions;
 use App\Filament\Resources\Permissions\Pages\ManagePermissions;
 use BackedEnum;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
@@ -89,34 +90,104 @@ class PermissionResource extends Resource
     {
         return $schema
             ->components([
-                Section::make(__('school.permissions.sections.basic.title'))
-                    ->description(__('school.permissions.sections.basic.description'))
+                Section::make(self::label('تنظيم الصلاحية', 'Permission organization'))
+                    ->description(self::label(
+                        'هذه البيانات تجعل الصلاحيات مفهومة ومجمعة بشكل واضح للعميل داخل لوحة التحكم.',
+                        'These fields make permissions clear, grouped, and understandable for the client.'
+                    ))
+                    ->schema([
+                        TextInput::make('sort_order')
+                            ->label(self::label('ترتيب العرض', 'Display order'))
+                            ->numeric()
+                            ->rules(['integer', 'min:0'])
+                            ->default(fn(): int => self::nextSortOrder())
+                            ->required()
+                            ->helperText(self::label(
+                                'يستخدم لترتيب الصلاحيات داخل كل مجموعة. يُفضّل ترك فراغات مثل 10، 20، 30 لتسهيل الإضافة لاحقًا.',
+                                'Used to order permissions inside each group. Leaving gaps like 10, 20, 30 makes future additions easier.'
+                            )),
+
+                        TextInput::make('group_name')
+                            ->label(self::label('المجموعة', 'Group'))
+                            ->required()
+                            ->maxLength(255)
+                            ->placeholder(self::label('مثال: الأدوار والصلاحيات', 'Example: Roles and permissions'))
+                            ->helperText(self::label(
+                                'اسم المجموعة التي ستظهر في جدول الصلاحيات والفلاتر.',
+                                'The group name shown in the permissions table and filters.'
+                            )),
+
+                        TextInput::make('display_name')
+                            ->label(self::label('الاسم المقروء', 'Readable name'))
+                            ->required()
+                            ->maxLength(255)
+                            ->placeholder(self::label('مثال: عرض الصلاحيات', 'Example: View permissions'))
+                            ->helperText(self::label(
+                                'اسم واضح ومفهوم يظهر للمستخدم بدل الاسم التقني.',
+                                'A clear user-facing name shown instead of the technical name.'
+                            )),
+                    ])
+                    ->columns([
+                        'default' => 1,
+                        'lg' => 3,
+                    ]),
+
+                Section::make(self::label('شرح الصلاحية', 'Permission explanation'))
+                    ->description(self::label(
+                        'الوصف مهم جدًا حتى يعرف العميل وظيفة كل صلاحية قبل ربطها بالأدوار.',
+                        'The description helps the client understand what each permission does before assigning it to roles.'
+                    ))
+                    ->schema([
+                        Textarea::make('description')
+                            ->label(self::label('الوصف', 'Description'))
+                            ->required()
+                            ->rows(5)
+                            ->maxLength(1000)
+                            ->placeholder(self::label(
+                                'اكتب شرحًا واضحًا لما تسمح به هذه الصلاحية داخل النظام.',
+                                'Write a clear explanation of what this permission allows in the system.'
+                            ))
+                            ->helperText(self::label(
+                                'مثال: يسمح بالدخول إلى صفحة المستخدمين واستعراض الحسابات الموجودة في النظام.',
+                                'Example: Allows access to the users page and viewing existing system accounts.'
+                            )),
+                    ]),
+
+                Section::make(self::label('البيانات التقنية', 'Technical data'))
+                    ->description(self::label(
+                        'هذه الحقول تقنية ويجب تعديلها بحذر لأنها مرتبطة بمنطق الصلاحيات داخل الكود.',
+                        'These fields are technical and should be edited carefully because they are tied to authorization logic.'
+                    ))
                     ->schema([
                         TextInput::make('name')
-                            ->label(__('school.permissions.fields.name'))
+                            ->label(self::label('الاسم التقني', 'Technical name'))
                             ->required()
                             ->unique(table: 'permissions', column: 'name', ignoreRecord: true)
+                            ->rules(['regex:/^[a-z0-9_.-]+$/'])
                             ->maxLength(255)
-                            ->placeholder(__('school.permissions.messages.name_placeholder'))
-                            ->helperText(__('school.permissions.messages.name_help'))
-                            ->autofocus(),
+                            ->placeholder('permissions.view')
+                            ->helperText(self::label(
+                                'يفضّل استخدام صيغة واضحة مثل: users.view أو roles.update أو permissions.create.',
+                                'Use a clear format like: users.view, roles.update, or permissions.create.'
+                            )),
 
                         TextInput::make('guard_name')
-                            ->label(__('school.permissions.fields.guard_name'))
+                            ->label(self::label('الحارس', 'Guard'))
                             ->default('web')
                             ->required()
                             ->disabled()
                             ->dehydrated()
                             ->maxLength(255)
                             ->helperText(self::label(
-                                'يجب أن يبقى web لأن لوحة Filament الحالية تعمل على نفس guard.',
-                                'Must remain web because the current Filament panel uses the same guard.'
+                                'يجب أن يبقى web. لا نستخدم Shield ولا Multiple Guards في هذه المرحلة.',
+                                'Must remain web. Shield and multiple guards are not used at this stage.'
                             )),
                     ])
                     ->columns([
                         'default' => 1,
-                        'md' => 2,
-                    ]),
+                        'lg' => 2,
+                    ])
+                    ->collapsed(false),
             ]);
     }
 
@@ -178,14 +249,14 @@ class PermissionResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('guard_name')
-                    ->label(__('school.permissions.fields.guard_name'))
+                    ->label(self::label('الحارس', 'Guard'))
                     ->badge()
                     ->color('gray')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('created_at')
-                    ->label(__('school.permissions.fields.created_at'))
+                    ->label(self::label('تاريخ الإنشاء', 'Created at'))
                     ->dateTime('Y-m-d H:i')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -205,14 +276,17 @@ class PermissionResource extends Resource
             ])
             ->recordActions([
                 EditAction::make()
-                    ->label(__('school.permissions.actions.edit'))
+                    ->label(self::label('تعديل', 'Edit'))
                     ->slideOver()
                     ->modalWidth(Width::SevenExtraLarge)
                     ->visible(fn(): bool => auth()->user()?->can('permissions.update') ?? false)
                     ->after(function (): void {
                         app(PermissionRegistrar::class)->forgetCachedPermissions();
                     })
-                    ->successNotificationTitle(__('school.permissions.messages.updated')),
+                    ->successNotificationTitle(self::label(
+                        'تم تحديث الصلاحية بنجاح',
+                        'Permission updated successfully'
+                    )),
             ])
             ->emptyStateHeading(self::label('لا توجد صلاحيات', 'No permissions found'))
             ->emptyStateDescription(self::label(
@@ -231,6 +305,11 @@ class PermissionResource extends Resource
         return [
             'index' => ManagePermissions::route('/'),
         ];
+    }
+
+    private static function nextSortOrder(): int
+    {
+        return ((int) Permission::query()->max('sort_order')) + 10;
     }
 
     private static function label(string $ar, string $en): string
