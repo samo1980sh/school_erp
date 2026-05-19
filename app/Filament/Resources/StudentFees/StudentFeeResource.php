@@ -277,38 +277,46 @@ class StudentFeeResource extends Resource
                     'student:id,student_number,first_name,father_name,last_name',
                     'feeType:id,code,name',
                     'academicYear:id,name',
+                    'grade:id,name',
+                    'section:id,name',
                 ])
                 ->orderByDesc('id'))
             ->columns([
                 TextColumn::make('fee_number')
-                    ->label(self::label('رقم الرسم', 'Fee number'))
-                    ->formatStateUsing(fn ($state): string => self::ltr($state))
-                    ->html()
+                    ->label(self::label('رقم الرسم', 'Fee no.'))
+                    ->formatStateUsing(fn ($state): string => trim((string) $state) !== '' ? (string) $state : '—')
+                    ->badge()
+                    ->color('warning')
                     ->copyable()
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->extraAttributes(['dir' => 'ltr', 'style' => 'unicode-bidi: plaintext; text-align: left;']),
 
                 TextColumn::make('student.student_number')
                     ->label(self::label('رقم الطالب', 'Student no.'))
                     ->formatStateUsing(fn ($state): string => self::ltr($state))
                     ->html()
                     ->copyable()
-                    ->searchable(),
+                    ->searchable()
+                    ->sortable(),
 
                 TextColumn::make('student_name')
                     ->label(self::label('الطالب', 'Student'))
                     ->state(fn (StudentFee $record): string => self::studentName($record->student))
                     ->searchable(query: fn (Builder $query, string $search): Builder => $query
-                        ->whereHas('student', fn (Builder $studentQuery) => $studentQuery
-                            ->where('first_name', 'like', "%{$search}%")
+                        ->whereHas('student', fn (Builder $studentQuery): Builder => $studentQuery
+                            ->where('student_number', 'like', "%{$search}%")
+                            ->orWhere('first_name', 'like', "%{$search}%")
                             ->orWhere('father_name', 'like', "%{$search}%")
-                            ->orWhere('last_name', 'like', "%{$search}%")
-                            ->orWhere('student_number', 'like', "%{$search}%")))
-                    ->weight('bold'),
+                            ->orWhere('last_name', 'like', "%{$search}%")))
+                    ->weight('bold')
+                    ->description(fn (StudentFee $record): ?string => $record->academicYear?->name),
 
                 TextColumn::make('feeType.name')
                     ->label(self::label('نوع الرسم', 'Fee type'))
-                    ->sortable(),
+                    ->searchable()
+                    ->sortable()
+                    ->description(fn (StudentFee $record): ?string => $record->feeType?->code),
 
                 TextColumn::make('amount')
                     ->label(self::label('المبلغ', 'Amount'))
@@ -318,29 +326,54 @@ class StudentFeeResource extends Resource
                 TextColumn::make('paid_amount')
                     ->label(self::label('المدفوع', 'Paid'))
                     ->money('SYP')
-                    ->sortable(),
+                    ->sortable()
+                    ->color('success'),
 
                 TextColumn::make('balance_amount')
-                    ->label(self::label('المتبقي', 'Balance'))
+                    ->label(self::label('المتبقي', 'Remaining'))
                     ->money('SYP')
-                    ->sortable(),
+                    ->sortable()
+                    ->color(fn (StudentFee $record): string => (float) $record->balance_amount > 0 ? 'danger' : 'success'),
+
+                TextColumn::make('due_on')
+                    ->label(self::label('الاستحقاق', 'Due date'))
+                    ->date('Y-m-d')
+                    ->sortable()
+                    ->toggleable(),
 
                 TextColumn::make('status')
                     ->label(self::label('الحالة', 'Status'))
                     ->formatStateUsing(fn (?string $state): string => self::statusLabel((string) $state))
                     ->badge()
-                    ->color(fn (?string $state): string => self::statusColor((string) $state)),
+                    ->color(fn (?string $state): string => self::statusColor((string) $state))
+                    ->sortable(),
             ])
             ->filters([
-                SelectFilter::make('status')
-                    ->label(self::label('الحالة', 'Status'))
-                    ->options(self::statusOptions()),
+                SelectFilter::make('student_id')
+                    ->label(self::label('الطالب', 'Student'))
+                    ->options(fn (): array => self::studentOptions())
+                    ->searchable()
+                    ->preload(),
 
                 SelectFilter::make('academic_year_id')
                     ->label(self::label('السنة الدراسية', 'Academic year'))
-                    ->options(fn (): array => AcademicYear::query()->orderBy('sort_order')->pluck('name', 'id')->toArray())
+                    ->options(fn (): array => AcademicYear::query()
+                        ->orderBy('sort_order')
+                        ->orderByDesc('starts_on')
+                        ->pluck('name', 'id')
+                        ->toArray())
                     ->searchable()
                     ->preload(),
+
+                SelectFilter::make('fee_type_id')
+                    ->label(self::label('نوع الرسم', 'Fee type'))
+                    ->options(fn (): array => self::feeTypeOptions())
+                    ->searchable()
+                    ->preload(),
+
+                SelectFilter::make('status')
+                    ->label(self::label('الحالة', 'Status'))
+                    ->options(self::statusOptions()),
             ])
             ->recordActions([
                 EditAction::make()
@@ -348,7 +381,12 @@ class StudentFeeResource extends Resource
                     ->slideOver()
                     ->modalWidth(Width::SevenExtraLarge)
                     ->visible(fn (StudentFee $record): bool => static::canEdit($record)),
-            ]);
+            ])
+            ->emptyStateHeading(self::label('لا توجد تفاصيل رسوم', 'No fee details found'))
+            ->emptyStateDescription(self::label(
+                'هذه الصفحة سجل تفصيلي للمطالبات المالية. استخدم أرصدة الطلاب كشاشة العمل اليومية للمتابعة والتقارير.',
+                'This page is an audit log of financial charges. Use Student Balances as the daily finance workspace for monitoring and reports.'
+            ));
     }
 
     public static function getPages(): array

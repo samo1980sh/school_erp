@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Filament\Resources\StudentPayments;
 
 use App\Filament\Resources\StudentPayments\Pages\ManageStudentPayments;
+use App\Models\AcademicYear;
+use App\Models\FeeType;
 use App\Models\Employee;
 use App\Models\Student;
 use App\Models\StudentFee;
@@ -196,18 +198,22 @@ class StudentPaymentResource extends Resource
             ->modifyQueryUsing(fn (Builder $query): Builder => $query
                 ->with([
                     'student:id,student_number,first_name,father_name,last_name',
-                    'studentFee:id,fee_number,fee_type_id',
-                    'studentFee.feeType:id,name',
+                    'academicYear:id,name',
+                    'studentFee:id,fee_number,fee_type_id,status',
+                    'studentFee.feeType:id,name,code',
                 ])
-                ->orderByDesc('paid_on'))
+                ->orderByDesc('paid_on')
+                ->orderByDesc('id'))
             ->columns([
                 TextColumn::make('payment_number')
                     ->label(self::label('رقم الإيصال', 'Receipt no.'))
-                    ->formatStateUsing(fn ($state): string => self::ltr($state))
-                    ->html()
+                    ->formatStateUsing(fn ($state): string => trim((string) $state) !== '' ? (string) $state : '—')
+                    ->badge()
+                    ->color('success')
                     ->copyable()
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->extraAttributes(['dir' => 'ltr', 'style' => 'unicode-bidi: plaintext; text-align: left;']),
 
                 TextColumn::make('studentFee.fee_number')
                     ->label(self::label('رقم الرسم', 'Fee no.'))
@@ -221,21 +227,31 @@ class StudentPaymentResource extends Resource
                     ->formatStateUsing(fn ($state): string => self::ltr($state))
                     ->html()
                     ->copyable()
-                    ->searchable(),
+                    ->searchable()
+                    ->sortable(),
 
                 TextColumn::make('student_name')
                     ->label(self::label('الطالب', 'Student'))
                     ->state(fn (StudentPayment $record): string => self::studentName($record->student))
-                    ->weight('bold'),
+                    ->searchable(query: fn (Builder $query, string $search): Builder => $query
+                        ->whereHas('student', fn (Builder $studentQuery): Builder => $studentQuery
+                            ->where('student_number', 'like', "%{$search}%")
+                            ->orWhere('first_name', 'like', "%{$search}%")
+                            ->orWhere('father_name', 'like', "%{$search}%")
+                            ->orWhere('last_name', 'like', "%{$search}%")))
+                    ->weight('bold')
+                    ->description(fn (StudentPayment $record): ?string => $record->academicYear?->name),
 
                 TextColumn::make('studentFee.feeType.name')
                     ->label(self::label('نوع الرسم', 'Fee type'))
-                    ->toggleable(),
+                    ->toggleable()
+                    ->description(fn (StudentPayment $record): ?string => $record->studentFee?->feeType?->code),
 
                 TextColumn::make('amount')
                     ->label(self::label('المبلغ', 'Amount'))
                     ->money('SYP')
-                    ->sortable(),
+                    ->sortable()
+                    ->color('success'),
 
                 TextColumn::make('paid_on')
                     ->label(self::label('تاريخ الدفع', 'Paid on'))
@@ -248,14 +264,67 @@ class StudentPaymentResource extends Resource
                     ->badge()
                     ->color('primary'),
 
+                TextColumn::make('studentFee.status')
+                    ->label(self::label('حالة الرسم', 'Fee status'))
+                    ->formatStateUsing(fn (?string $state): string => self::feeStatusLabel((string) $state))
+                    ->badge()
+                    ->color(fn (?string $state): string => self::feeStatusColor((string) $state))
+                    ->toggleable(),
+
                 TextColumn::make('reference_number')
                     ->label(self::label('المرجع', 'Reference'))
                     ->formatStateUsing(fn ($state): string => self::ltr($state))
                     ->html()
                     ->copyable()
-                    ->toggleable(),
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                SelectFilter::make('student_id')
+                    ->label(self::label('الطالب', 'Student'))
+                    ->options(fn (): array => self::studentOptions())
+                    ->searchable()
+                    ->preload(),
+
+                SelectFilter::make('academic_year_id')
+                    ->label(self::label('السنة الدراسية', 'Academic year'))
+                    ->options(fn (): array => AcademicYear::query()
+                        ->orderBy('sort_order')
+                        ->orderByDesc('starts_on')
+                        ->pluck('name', 'id')
+                        ->toArray())
+                    ->searchable()
+                    ->preload(),
+
+                SelectFilter::make('fee_type_id')
+                    ->label(self::label('نوع الرسم', 'Fee type'))
+                    ->options(fn (): array => self::feeTypeOptions())
+                    ->searchable()
+                    ->preload()
+                    ->query(function (Builder $query, array $data): Builder {
+                        $value = $data['value'] ?? null;
+
+                        if (blank($value)) {
+                            return $query;
+                        }
+
+                        return $query->whereHas('studentFee', fn (Builder $feeQuery): Builder => $feeQuery
+                            ->where('fee_type_id', $value));
+                    }),
+
+                SelectFilter::make('fee_status')
+                    ->label(self::label('حالة الرسم', 'Fee status'))
+                    ->options(self::feeStatusOptions())
+                    ->query(function (Builder $query, array $data): Builder {
+                        $value = $data['value'] ?? null;
+
+                        if (blank($value)) {
+                            return $query;
+                        }
+
+                        return $query->whereHas('studentFee', fn (Builder $feeQuery): Builder => $feeQuery
+                            ->where('status', $value));
+                    }),
+
                 SelectFilter::make('payment_method')
                     ->label(self::label('طريقة الدفع', 'Payment method'))
                     ->options(self::methodOptions()),
@@ -266,7 +335,12 @@ class StudentPaymentResource extends Resource
                     ->slideOver()
                     ->modalWidth(Width::SevenExtraLarge)
                     ->visible(fn (StudentPayment $record): bool => static::canEdit($record)),
-            ]);
+            ])
+            ->emptyStateHeading(self::label('لا توجد إيصالات دفع', 'No payment receipts found'))
+            ->emptyStateDescription(self::label(
+                'هذه الصفحة سجل محاسبي للتدقيق في الدفعات والإيصالات. استخدم أرصدة الطلاب كشاشة العمل اليومية للمتابعة والتقارير.',
+                'This page is an accounting audit log for payments and receipts. Use Student Balances as the daily finance workspace for monitoring and reports.'
+            ));
     }
 
     public static function getPages(): array
@@ -279,6 +353,55 @@ class StudentPaymentResource extends Resource
     public static function getRelations(): array
     {
         return [];
+    }
+
+    private static function studentOptions(): array
+    {
+        return Student::query()
+            ->orderBy('student_number')
+            ->limit(3000)
+            ->get()
+            ->mapWithKeys(fn (Student $student): array => [
+                $student->id => trim(implode(' - ', array_filter([
+                    $student->student_number,
+                    self::studentName($student),
+                ]))),
+            ])
+            ->toArray();
+    }
+
+    private static function feeTypeOptions(): array
+    {
+        return FeeType::query()
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->pluck('name', 'id')
+            ->toArray();
+    }
+
+    private static function feeStatusOptions(): array
+    {
+        return [
+            'unpaid' => self::label('غير مدفوع', 'Unpaid'),
+            'partial' => self::label('مدفوع جزئيًا', 'Partial'),
+            'paid' => self::label('مدفوع', 'Paid'),
+            'cancelled' => self::label('ملغى', 'Cancelled'),
+        ];
+    }
+
+    private static function feeStatusLabel(string $status): string
+    {
+        return self::feeStatusOptions()[$status] ?? $status;
+    }
+
+    private static function feeStatusColor(string $status): string
+    {
+        return match ($status) {
+            'paid' => 'success',
+            'partial' => 'warning',
+            'cancelled' => 'gray',
+            default => 'danger',
+        };
     }
 
     public static function methodOptions(): array
