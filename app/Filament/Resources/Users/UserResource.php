@@ -6,6 +6,7 @@ namespace App\Filament\Resources\Users;
 
 use App\Filament\Resources\Users\Pages\ManageUsers;
 use App\Models\User;
+use App\Support\Rbac\RbacRoleMetadata;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
@@ -183,8 +184,8 @@ class UserResource extends Resource
                             ->options(fn(): array => self::roleOptions())
                             ->disabled(fn(?User $record): bool => static::rolesFieldShouldBeDisabled($record))
                             ->helperText(self::label(
-                                'الأدوار هي التي تحدد وصول المستخدم إلى لوحة الإدارة والصلاحيات المتاحة له. لا تمنح المستخدم أكثر مما يحتاج فعليًا.',
-                                'Roles control admin access and available permissions. Do not grant more access than the user actually needs.'
+                                'الأدوار تظهر باسم مقروء مع الاسم التقني. الأدوار هي التي تحدد وصول المستخدم إلى لوحة الإدارة والصلاحيات المتاحة له.',
+                                'Roles are displayed with readable and technical names. Roles control admin access and available permissions.'
                             ))
                             ->columnSpanFull(),
                     ])
@@ -198,7 +199,9 @@ class UserResource extends Resource
             ->modifyQueryUsing(
                 fn(Builder $query): Builder => $query
                     ->with([
-                        'roles' => fn($rolesQuery) => $rolesQuery->orderBy('name'),
+                        'roles' => fn($rolesQuery) => $rolesQuery
+                            ->orderBy('sort_order')
+                            ->orderBy('name'),
                     ])
                     ->withCount('roles')
                     ->orderByDesc('id')
@@ -255,12 +258,23 @@ class UserResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                SelectFilter::make('roles')
+                SelectFilter::make('role_id')
                     ->label(__('school.users.fields.roles'))
-                    ->relationship(name: 'roles', titleAttribute: 'name')
                     ->multiple()
+                    ->options(fn(): array => self::roleOptions())
+                    ->searchable()
                     ->preload()
-                    ->searchable(),
+                    ->query(function (Builder $query, array $data): Builder {
+                        $values = array_values(array_filter((array) ($data['values'] ?? [])));
+
+                        if ($values === []) {
+                            return $query;
+                        }
+
+                        return $query->whereHas('roles', function (Builder $rolesQuery) use ($values): void {
+                            $rolesQuery->whereIn('roles.id', $values);
+                        });
+                    }),
             ])
             ->recordActions([
                 EditAction::make()
@@ -363,8 +377,12 @@ class UserResource extends Resource
     {
         return Role::query()
             ->where('guard_name', 'web')
+            ->orderBy('sort_order')
             ->orderBy('name')
-            ->pluck('name', 'id')
+            ->get()
+            ->mapWithKeys(fn(Role $role): array => [
+                $role->getKey() => RbacRoleMetadata::optionLabel($role),
+            ])
             ->toArray();
     }
 
@@ -410,11 +428,21 @@ class UserResource extends Resource
         }
 
         return $record->roles
-            ->sortBy('name')
-            ->map(fn(Role $role): string => sprintf(
-                '<span class="inline-flex items-center rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 ring-1 ring-gray-200">%s</span>',
-                e($role->name)
-            ))
+            ->sortBy([
+                ['sort_order', 'asc'],
+                ['name', 'asc'],
+            ])
+            ->map(function (Role $role): string {
+                $displayName = RbacRoleMetadata::displayName($role);
+                $technicalName = (string) $role->name;
+
+                return sprintf(
+                    '<span class="inline-flex items-center rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 ring-1 ring-gray-200" title="%s">%s <span class="ms-1 text-gray-400">(%s)</span></span>',
+                    e(RbacRoleMetadata::description($role)),
+                    e($displayName),
+                    e($technicalName)
+                );
+            })
             ->implode(' ');
     }
 
