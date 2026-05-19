@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Permissions;
 
 use App\Filament\Resources\Permissions\Pages\ManagePermissions;
+use App\Support\Rbac\RbacPermissionMetadata;
 use BackedEnum;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Textarea;
@@ -90,6 +91,43 @@ class PermissionResource extends Resource
     {
         return $schema
             ->components([
+                Section::make(self::label('المعاينة الإنكليزية', 'English display preview'))
+                    ->description(self::label(
+                        'تظهر هذه المعاينة عند استخدام الواجهة الإنكليزية فقط، بدون تغيير القيم العربية المخزنة في قاعدة البيانات.',
+                        'This preview is shown for the English interface without changing the Arabic values stored in the database.'
+                    ))
+                    ->schema([
+                        TextInput::make('localized_group_preview')
+                            ->label(self::label('المجموعة المعروضة', 'Displayed group'))
+                            ->disabled()
+                            ->dehydrated(false)
+                            ->formatStateUsing(fn(?Permission $record): ?string => $record
+                                ? RbacPermissionMetadata::group($record)
+                                : null),
+
+                        TextInput::make('localized_display_name_preview')
+                            ->label(self::label('الاسم المعروض', 'Displayed name'))
+                            ->disabled()
+                            ->dehydrated(false)
+                            ->formatStateUsing(fn(?Permission $record): ?string => $record
+                                ? RbacPermissionMetadata::displayName($record)
+                                : null),
+
+                        Textarea::make('localized_description_preview')
+                            ->label(self::label('الوصف المعروض', 'Displayed description'))
+                            ->rows(3)
+                            ->disabled()
+                            ->dehydrated(false)
+                            ->formatStateUsing(fn(?Permission $record): ?string => $record
+                                ? RbacPermissionMetadata::description($record)
+                                : null),
+                    ])
+                    ->columns([
+                        'default' => 1,
+                        'lg' => 2,
+                    ])
+                    ->visible(fn(): bool => app()->getLocale() === 'en'),
+
                 Section::make(self::label('تنظيم الصلاحية', 'Permission organization'))
                     ->description(self::label(
                         'هذه البيانات تجعل الصلاحيات مفهومة ومجمعة بشكل واضح للعميل داخل لوحة التحكم.',
@@ -108,23 +146,23 @@ class PermissionResource extends Resource
                             )),
 
                         TextInput::make('group_name')
-                            ->label(self::label('المجموعة', 'Group'))
+                            ->label(self::label('المجموعة المخزنة', 'Stored group'))
                             ->required()
                             ->maxLength(255)
                             ->placeholder(self::label('مثال: الأدوار والصلاحيات', 'Example: Roles and permissions'))
                             ->helperText(self::label(
-                                'اسم المجموعة التي ستظهر في جدول الصلاحيات والفلاتر.',
-                                'The group name shown in the permissions table and filters.'
+                                'اسم المجموعة المخزن في قاعدة البيانات. عند الواجهة الإنكليزية يتم عرض ترجمة إنكليزية من ملف lang/en/rbac.php.',
+                                'The group stored in the database. In the English interface, an English label is displayed from lang/en/rbac.php.'
                             )),
 
                         TextInput::make('display_name')
-                            ->label(self::label('الاسم المقروء', 'Readable name'))
+                            ->label(self::label('الاسم المقروء المخزن', 'Stored readable name'))
                             ->required()
                             ->maxLength(255)
                             ->placeholder(self::label('مثال: عرض الصلاحيات', 'Example: View permissions'))
                             ->helperText(self::label(
-                                'اسم واضح ومفهوم يظهر للمستخدم بدل الاسم التقني.',
-                                'A clear user-facing name shown instead of the technical name.'
+                                'الاسم المقروء المخزن في قاعدة البيانات. الواجهة الإنكليزية تعرض ترجمة إنكليزية عند توفرها.',
+                                'The readable name stored in the database. The English interface displays an English translation when available.'
                             )),
                     ])
                     ->columns([
@@ -139,7 +177,7 @@ class PermissionResource extends Resource
                     ))
                     ->schema([
                         Textarea::make('description')
-                            ->label(self::label('الوصف', 'Description'))
+                            ->label(self::label('الوصف المخزن', 'Stored description'))
                             ->required()
                             ->rows(5)
                             ->maxLength(1000)
@@ -148,8 +186,8 @@ class PermissionResource extends Resource
                                 'Write a clear explanation of what this permission allows in the system.'
                             ))
                             ->helperText(self::label(
-                                'مثال: يسمح بالدخول إلى صفحة المستخدمين واستعراض الحسابات الموجودة في النظام.',
-                                'Example: Allows access to the users page and viewing existing system accounts.'
+                                'هذا النص هو القيمة المخزنة في قاعدة البيانات. عند الواجهة الإنكليزية يتم عرض الترجمة من ملف lang/en/rbac.php.',
+                                'This text is the value stored in the database. In the English interface, the translation is displayed from lang/en/rbac.php.'
                             )),
                     ]),
 
@@ -186,8 +224,7 @@ class PermissionResource extends Resource
                     ->columns([
                         'default' => 1,
                         'lg' => 2,
-                    ])
-                    ->collapsed(false),
+                    ]),
             ]);
     }
 
@@ -204,6 +241,7 @@ class PermissionResource extends Resource
             ->columns([
                 TextColumn::make('group_name')
                     ->label(self::label('المجموعة', 'Group'))
+                    ->formatStateUsing(fn(Permission $record): string => RbacPermissionMetadata::group($record))
                     ->badge()
                     ->color('primary')
                     ->searchable()
@@ -211,6 +249,10 @@ class PermissionResource extends Resource
 
                 TextColumn::make('display_name')
                     ->label(self::label('اسم الصلاحية', 'Permission name'))
+                    ->formatStateUsing(fn(Permission $record): string => RbacPermissionMetadata::displayName($record))
+                    ->description(fn(Permission $record): ?string => filled(RbacPermissionMetadata::description($record))
+                        ? RbacPermissionMetadata::description($record)
+                        : null)
                     ->weight('bold')
                     ->searchable(['display_name', 'name', 'description'])
                     ->sortable()
@@ -218,14 +260,13 @@ class PermissionResource extends Resource
 
                 TextColumn::make('description')
                     ->label(self::label('الوصف', 'Description'))
+                    ->formatStateUsing(fn(Permission $record): string => RbacPermissionMetadata::description($record))
                     ->searchable()
                     ->wrap()
                     ->limit(100)
-                    ->tooltip(
-                        fn(Permission $record): ?string => filled($record->description)
-                            ? (string) $record->description
-                            : null
-                    ),
+                    ->tooltip(fn(Permission $record): ?string => filled(RbacPermissionMetadata::description($record))
+                        ? RbacPermissionMetadata::description($record)
+                        : null),
 
                 TextColumn::make('name')
                     ->label(self::label('الاسم التقني', 'Technical name'))
@@ -264,13 +305,7 @@ class PermissionResource extends Resource
             ->filters([
                 SelectFilter::make('group_name')
                     ->label(self::label('المجموعة', 'Group'))
-                    ->options(fn(): array => Permission::query()
-                        ->whereNotNull('group_name')
-                        ->where('group_name', '<>', '')
-                        ->distinct()
-                        ->orderBy('group_name')
-                        ->pluck('group_name', 'group_name')
-                        ->toArray())
+                    ->options(fn(): array => RbacPermissionMetadata::groupFilterOptions())
                     ->searchable()
                     ->preload(),
             ])

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Roles;
 
 use App\Filament\Resources\Roles\Pages\ManageRoles;
+use App\Support\Rbac\RbacPermissionMetadata;
 use BackedEnum;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Select;
@@ -17,7 +18,6 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 use UnitEnum;
@@ -140,9 +140,9 @@ class RoleResource extends Resource
                             ->label(__('school.roles.fields.permissions'))
                             ->multiple()
                             ->preload()
-                            ->searchable(['name', 'display_name', 'description'])
+                            ->searchable()
                             ->relationship(name: 'permissions', titleAttribute: 'display_name')
-                            ->options(fn(): array => self::permissionSelectOptions())
+                            ->options(fn(): array => RbacPermissionMetadata::groupedSelectOptions())
                             ->helperText(self::label(
                                 'يمكنك البحث باسم الصلاحية المقروء أو الاسم التقني أو الوصف. لا تمنح الدور أكثر مما يحتاج فعليًا.',
                                 'You can search by readable name, technical name, or description. Do not grant more permissions than the role actually needs.'
@@ -188,7 +188,7 @@ class RoleResource extends Resource
 
                 TextColumn::make('permissions_overview')
                     ->label(self::label('ملخص الصلاحيات', 'Permissions overview'))
-                    ->state(fn(Role $record): string => self::permissionsOverview($record))
+                    ->state(fn(Role $record): string => RbacPermissionMetadata::rolePermissionsOverviewHtml($record))
                     ->html()
                     ->wrap()
                     ->toggleable(),
@@ -237,77 +237,6 @@ class RoleResource extends Resource
         return [
             'index' => ManageRoles::route('/'),
         ];
-    }
-
-    private static function permissionSelectOptions(): array
-    {
-        return Permission::query()
-            ->where('guard_name', 'web')
-            ->orderBy('group_name')
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->get()
-            ->groupBy(fn(Permission $permission): string => filled($permission->group_name)
-                ? (string) $permission->group_name
-                : self::label('غير مصنفة', 'Ungrouped'))
-            ->mapWithKeys(function ($permissions, string $groupName): array {
-                return [
-                    $groupName => $permissions
-                        ->mapWithKeys(fn(Permission $permission): array => [
-                            $permission->getKey() => self::permissionOptionLabel($permission),
-                        ])
-                        ->toArray(),
-                ];
-            })
-            ->toArray();
-    }
-
-    private static function permissionOptionLabel(Permission $permission): string
-    {
-        $displayName = trim((string) ($permission->display_name ?: $permission->name));
-        $technicalName = trim((string) $permission->name);
-
-        if ($displayName === $technicalName) {
-            return $technicalName;
-        }
-
-        return "{$displayName} — {$technicalName}";
-    }
-
-    private static function permissionsOverview(Role $record): string
-    {
-        $permissions = $record->permissions;
-
-        if ($permissions->isEmpty()) {
-            return '<span class="text-gray-500">—</span>';
-        }
-
-        return $permissions
-            ->groupBy(fn(Permission $permission): string => filled($permission->group_name)
-                ? (string) $permission->group_name
-                : self::label('غير مصنفة', 'Ungrouped'))
-            ->map(function ($items, string $groupName): string {
-                $visibleItems = $items
-                    ->take(4)
-                    ->map(fn(Permission $permission): string => e(
-                        (string) ($permission->display_name ?: $permission->name)
-                    ))
-                    ->implode('، ');
-
-                $remainingCount = $items->count() - 4;
-
-                $moreText = $remainingCount > 0
-                    ? self::label(" +{$remainingCount} صلاحيات أخرى", " +{$remainingCount} more")
-                    : '';
-
-                return sprintf(
-                    '<div class="mb-1"><strong>%s</strong><span class="text-gray-500">: %s%s</span></div>',
-                    e($groupName),
-                    $visibleItems,
-                    e($moreText)
-                );
-            })
-            ->implode('');
     }
 
     private static function label(string $ar, string $en): string
