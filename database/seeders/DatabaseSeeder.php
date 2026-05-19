@@ -23,6 +23,7 @@ class DatabaseSeeder extends Seeder
             RbacProfessionalSeeder::class,
             RoleMetadataSeeder::class,
             SchoolSettingSeeder::class,
+            AcademicFoundationSeeder::class,
         ]);
     }
 }
