@@ -29,7 +29,7 @@ class PermissionResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-lock-closed';
 
-    protected static string|UnitEnum|null $navigationGroup = 'school.navigation.system_management';
+    protected static string|UnitEnum|null $navigationGroup = null;
 
     protected static ?int $navigationSort = 30;
 
@@ -54,7 +54,7 @@ class PermissionResource extends Resource
 
     public static function getNavigationGroup(): ?string
     {
-        return __('school.navigation.system_management');
+        return self::label('إدارة النظام', 'System Management');
     }
 
     public static function shouldRegisterNavigation(): bool

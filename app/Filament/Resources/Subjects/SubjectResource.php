@@ -32,7 +32,7 @@ class SubjectResource extends Resource
 
     protected static string|UnitEnum|null $navigationGroup = null;
 
-    protected static ?int $navigationSort = 60;
+    protected static ?int $navigationSort = 50;
 
     protected static ?string $recordTitleAttribute = 'name';
 
@@ -55,7 +55,7 @@ class SubjectResource extends Resource
 
     public static function getNavigationGroup(): ?string
     {
-        return self::label('الهيكل الأكاديمي', 'Academic Settings');
+        return self::label('الهيكل الأكاديمي', 'Academic Structure');
     }
 
     public static function shouldRegisterNavigation(): bool

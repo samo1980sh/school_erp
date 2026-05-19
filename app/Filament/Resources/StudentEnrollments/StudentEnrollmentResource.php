@@ -64,7 +64,7 @@ class StudentEnrollmentResource extends Resource
 
     public static function getNavigationGroup(): ?string
     {
-        return self::label('التسجيل والانتساب', 'Registration and Enrollment');
+        return self::label('التسجيل والانتساب', 'Registration & Enrollment');
     }
 
     public static function shouldRegisterNavigation(): bool

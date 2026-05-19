@@ -35,7 +35,7 @@ class StudentMarkResource extends Resource
 
     protected static string|UnitEnum|null $navigationGroup = null;
 
-    protected static ?int $navigationSort = 90;
+    protected static ?int $navigationSort = 20;
 
     protected static ?string $recordTitleAttribute = 'display_title';
 
@@ -58,7 +58,7 @@ class StudentMarkResource extends Resource
 
     public static function getNavigationGroup(): ?string
     {
-        return self::label('التقييم والدرجات', 'Assessment and Marks');
+        return self::label('التقييم والدرجات', 'Assessment & Marks');
     }
 
     public static function shouldRegisterNavigation(): bool

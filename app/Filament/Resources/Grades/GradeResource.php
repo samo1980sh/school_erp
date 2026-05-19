@@ -56,7 +56,7 @@ class GradeResource extends Resource
 
     public static function getNavigationGroup(): ?string
     {
-        return self::label('الهيكل الأكاديمي', 'Academic Settings');
+        return self::label('الهيكل الأكاديمي', 'Academic Structure');
     }
 
     public static function shouldRegisterNavigation(): bool
