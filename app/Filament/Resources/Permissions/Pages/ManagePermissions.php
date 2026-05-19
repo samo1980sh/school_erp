@@ -28,7 +28,7 @@ class ManagePermissions extends ManageRecords
             CreateAction::make()
                 ->label(__('school.permissions.actions.create'))
                 ->slideOver()
-                ->modalWidth(Width::FiveExtraLarge)
+                ->modalWidth(Width::SevenExtraLarge)
                 ->visible(fn(): bool => auth()->user()?->can('permissions.create') ?? false)
                 ->after(function (): void {
                     app(PermissionRegistrar::class)->forgetCachedPermissions();

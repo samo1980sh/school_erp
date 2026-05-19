@@ -94,7 +94,8 @@ class PermissionResource extends Resource
                             ->unique(table: 'permissions', column: 'name', ignoreRecord: true)
                             ->maxLength(255)
                             ->placeholder(__('school.permissions.messages.name_placeholder'))
-                            ->helperText(__('school.permissions.messages.name_help')),
+                            ->helperText(__('school.permissions.messages.name_help'))
+                            ->autofocus(),
 
                         TextInput::make('guard_name')
                             ->label(__('school.permissions.fields.guard_name'))
@@ -102,9 +103,13 @@ class PermissionResource extends Resource
                             ->required()
                             ->disabled()
                             ->dehydrated()
-                            ->maxLength(255),
+                            ->maxLength(255)
+                            ->helperText('يجب أن يبقى web لأن لوحة Filament الحالية تعمل على نفس guard.'),
                     ])
-                    ->columns(2),
+                    ->columns([
+                        'default' => 1,
+                        'md' => 2,
+                    ]),
             ]);
     }
 
@@ -138,7 +143,7 @@ class PermissionResource extends Resource
                 EditAction::make()
                     ->label(__('school.permissions.actions.edit'))
                     ->slideOver()
-                    ->modalWidth(Width::FiveExtraLarge)
+                    ->modalWidth(Width::SevenExtraLarge)
                     ->visible(fn(): bool => auth()->user()?->can('permissions.update') ?? false)
                     ->after(function (): void {
                         app(PermissionRegistrar::class)->forgetCachedPermissions();
