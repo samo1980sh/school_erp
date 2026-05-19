@@ -24,6 +24,7 @@ class DatabaseSeeder extends Seeder
             RoleMetadataSeeder::class,
             SchoolSettingSeeder::class,
             AcademicFoundationSeeder::class,
+            EducationalStructureSeeder::class,
         ]);
     }
 }
