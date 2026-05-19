@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Filament\Resources\Permissions;
 
 use App\Filament\Resources\Permissions\Pages\ManagePermissions;
@@ -11,7 +13,9 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Enums\Width;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\PermissionRegistrar;
@@ -27,7 +31,7 @@ class PermissionResource extends Resource
 
     protected static ?int $navigationSort = 30;
 
-    protected static ?string $recordTitleAttribute = 'name';
+    protected static ?string $recordTitleAttribute = 'display_name';
 
     protected static bool $hasTitleCaseModelLabel = false;
 
@@ -104,7 +108,10 @@ class PermissionResource extends Resource
                             ->disabled()
                             ->dehydrated()
                             ->maxLength(255)
-                            ->helperText('يجب أن يبقى web لأن لوحة Filament الحالية تعمل على نفس guard.'),
+                            ->helperText(self::label(
+                                'يجب أن يبقى web لأن لوحة Filament الحالية تعمل على نفس guard.',
+                                'Must remain web because the current Filament panel uses the same guard.'
+                            )),
                     ])
                     ->columns([
                         'default' => 1,
@@ -116,28 +123,85 @@ class PermissionResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->defaultSort('id', 'asc')
+            ->modifyQueryUsing(
+                fn(Builder $query): Builder => $query
+                    ->withCount('roles')
+                    ->orderBy('group_name')
+                    ->orderBy('sort_order')
+                    ->orderBy('name')
+            )
             ->columns([
-                TextColumn::make('name')
-                    ->label(__('school.permissions.fields.name'))
+                TextColumn::make('group_name')
+                    ->label(self::label('المجموعة', 'Group'))
+                    ->badge()
+                    ->color('primary')
                     ->searchable()
                     ->sortable(),
+
+                TextColumn::make('display_name')
+                    ->label(self::label('اسم الصلاحية', 'Permission name'))
+                    ->weight('bold')
+                    ->searchable(['display_name', 'name', 'description'])
+                    ->sortable()
+                    ->wrap(),
+
+                TextColumn::make('description')
+                    ->label(self::label('الوصف', 'Description'))
+                    ->searchable()
+                    ->wrap()
+                    ->limit(100)
+                    ->tooltip(
+                        fn(Permission $record): ?string => filled($record->description)
+                            ? (string) $record->description
+                            : null
+                    ),
+
+                TextColumn::make('name')
+                    ->label(self::label('الاسم التقني', 'Technical name'))
+                    ->badge()
+                    ->color('gray')
+                    ->copyable()
+                    ->searchable()
+                    ->sortable(),
+
+                TextColumn::make('roles_count')
+                    ->label(self::label('الأدوار', 'Roles'))
+                    ->badge()
+                    ->color('success')
+                    ->alignCenter()
+                    ->sortable(),
+
+                TextColumn::make('sort_order')
+                    ->label(self::label('الترتيب', 'Order'))
+                    ->alignCenter()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('guard_name')
                     ->label(__('school.permissions.fields.guard_name'))
                     ->badge()
-                    ->sortable(),
-
-                TextColumn::make('roles.name')
-                    ->label(__('school.permissions.fields.roles'))
-                    ->badge()
-                    ->separator(',')
-                    ->default('—'),
+                    ->color('gray')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('created_at')
                     ->label(__('school.permissions.fields.created_at'))
                     ->dateTime('Y-m-d H:i')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+            ])
+            ->filters([
+                SelectFilter::make('group_name')
+                    ->label(self::label('المجموعة', 'Group'))
+                    ->options(fn(): array => Permission::query()
+                        ->whereNotNull('group_name')
+                        ->where('group_name', '<>', '')
+                        ->distinct()
+                        ->orderBy('group_name')
+                        ->pluck('group_name', 'group_name')
+                        ->toArray())
+                    ->searchable()
+                    ->preload(),
             ])
             ->recordActions([
                 EditAction::make()
@@ -149,7 +213,12 @@ class PermissionResource extends Resource
                         app(PermissionRegistrar::class)->forgetCachedPermissions();
                     })
                     ->successNotificationTitle(__('school.permissions.messages.updated')),
-            ]);
+            ])
+            ->emptyStateHeading(self::label('لا توجد صلاحيات', 'No permissions found'))
+            ->emptyStateDescription(self::label(
+                'لم يتم العثور على صلاحيات مطابقة للبحث أو التصفية الحالية.',
+                'No permissions match the current search or filters.'
+            ));
     }
 
     public static function getRelations(): array
@@ -162,5 +231,10 @@ class PermissionResource extends Resource
         return [
             'index' => ManagePermissions::route('/'),
         ];
+    }
+
+    private static function label(string $ar, string $en): string
+    {
+        return app()->getLocale() === 'en' ? $en : $ar;
     }
 }
