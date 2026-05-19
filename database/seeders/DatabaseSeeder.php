@@ -33,6 +33,7 @@ class DatabaseSeeder extends Seeder
             EmployeeFoundationSeeder::class,
             StudentEnrollmentSeeder::class,
             StudentAttendanceSeeder::class,
+            AssessmentFoundationSeeder::class,
         ]);
     }
 }
