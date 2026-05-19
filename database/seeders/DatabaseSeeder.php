@@ -31,6 +31,7 @@ class DatabaseSeeder extends Seeder
             GuardianFoundationSeeder::class,
             TeacherFoundationSeeder::class,
             EmployeeFoundationSeeder::class,
+            StudentEnrollmentSeeder::class,
         ]);
     }
 }
