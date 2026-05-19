@@ -139,6 +139,7 @@ class StudentResource extends Resource
                             ->maxLength(255),
 
                         TextInput::make('national_id')
+                            ->extraInputAttributes(['dir' => 'ltr', 'style' => 'unicode-bidi: plaintext; text-align: left; display: inline-block;'])
                             ->label(self::label('الرقم الوطني', 'National ID'))
                             ->unique(table: 'students', column: 'national_id', ignoreRecord: true)
                             ->maxLength(255),
@@ -156,6 +157,7 @@ class StudentResource extends Resource
                     ))
                     ->schema([
                         TextInput::make('student_number')
+                            ->extraInputAttributes(['dir' => 'ltr', 'style' => 'unicode-bidi: plaintext; text-align: left; display: inline-block;'])
                             ->label(self::label('الرقم المدرسي', 'Student number'))
                             ->required()
                             ->unique(table: 'students', column: 'student_number', ignoreRecord: true)
@@ -214,6 +216,7 @@ class StudentResource extends Resource
                     ))
                     ->schema([
                         TextInput::make('phone')
+                            ->extraInputAttributes(['dir' => 'ltr', 'style' => 'unicode-bidi: plaintext; text-align: left; display: inline-block;'])
                             ->label(self::label('الهاتف', 'Phone'))
                             ->tel()
                             ->maxLength(255),
@@ -264,6 +267,7 @@ class StudentResource extends Resource
             )
             ->columns([
                 TextColumn::make('student_number')
+                    ->extraAttributes(['dir' => 'ltr', 'style' => 'unicode-bidi: plaintext; text-align: left; display: inline-block;'])
                     ->label(self::label('الرقم المدرسي', 'Student number'))
                     ->badge()
                     ->color('gray')
@@ -306,6 +310,7 @@ class StudentResource extends Resource
                     ->sortable(),
 
                 TextColumn::make('phone')
+                    ->extraAttributes(['dir' => 'ltr', 'style' => 'unicode-bidi: plaintext; text-align: left; display: inline-block;'])
                     ->label(self::label('الهاتف', 'Phone'))
                     ->searchable()
                     ->toggleable(),
