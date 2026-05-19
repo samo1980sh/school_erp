@@ -8,15 +8,6 @@ use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
-    /**
-     * Seed the application's database.
-     *
-     * Foundation:
-     * - Spatie Laravel Permission only.
-     * - No Shield.
-     * - No multiple guards.
-     * - All roles and permissions use the web guard.
-     */
     public function run(): void
     {
         $this->call([
@@ -34,6 +25,7 @@ class DatabaseSeeder extends Seeder
             StudentEnrollmentSeeder::class,
             StudentAttendanceSeeder::class,
             AssessmentFoundationSeeder::class,
+            FinanceFoundationSeeder::class,
         ]);
     }
 }
