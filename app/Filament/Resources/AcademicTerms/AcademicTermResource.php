@@ -57,7 +57,7 @@ class AcademicTermResource extends Resource
 
     public static function getNavigationGroup(): ?string
     {
-        return self::label('الإعدادات الأكاديمية', 'Academic Setup');
+        return self::label('التهيئة الأكاديمية', 'Academic Setup');
     }
 
     public static function shouldRegisterNavigation(): bool
