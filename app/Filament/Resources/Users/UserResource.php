@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Filament\Resources\Users;
 
 use App\Filament\Resources\Users\Pages\ManageUsers;
@@ -14,9 +16,13 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Enums\Width;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Hash;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 use UnitEnum;
 
 class UserResource extends Resource
@@ -87,24 +93,38 @@ class UserResource extends Resource
         return false;
     }
 
-    private static function currentUserIsSuperAdmin(): bool
-    {
-        return auth()->user()?->hasRole('super_admin') ?? false;
-    }
-
-    private static function canManageSensitiveUser(User $record): bool
-    {
-        if ($record->hasRole('super_admin') && ! static::currentUserIsSuperAdmin()) {
-            return false;
-        }
-
-        return auth()->user()?->can('users.update') ?? false;
-    }
-
     public static function form(Schema $schema): Schema
     {
         return $schema
             ->components([
+                Section::make(self::label('حالة الحساب', 'Account status'))
+                    ->description(self::label(
+                        'ملخص سريع يوضح نوع الحساب وإمكانية دخوله إلى لوحة الإدارة.',
+                        'A quick summary showing the account type and whether it can access the admin panel.'
+                    ))
+                    ->schema([
+                        TextInput::make('account_status_preview')
+                            ->label(self::label('نوع الحساب', 'Account type'))
+                            ->disabled()
+                            ->dehydrated(false)
+                            ->formatStateUsing(fn(?User $record): ?string => $record
+                                ? self::accountStatusLabel($record)
+                                : null),
+
+                        TextInput::make('admin_access_preview')
+                            ->label(self::label('دخول لوحة الإدارة', 'Admin panel access'))
+                            ->disabled()
+                            ->dehydrated(false)
+                            ->formatStateUsing(fn(?User $record): ?string => $record
+                                ? self::panelAccessLabel($record)
+                                : null),
+                    ])
+                    ->columns([
+                        'default' => 1,
+                        'md' => 2,
+                    ])
+                    ->visible(fn(?User $record): bool => $record !== null),
+
                 Section::make(__('school.users.sections.basic.title'))
                     ->description(__('school.users.sections.basic.description'))
                     ->schema([
@@ -149,16 +169,23 @@ class UserResource extends Resource
                     ]),
 
                 Section::make(__('school.users.sections.roles.title'))
-                    ->description(__('school.users.sections.roles.description'))
+                    ->description(self::label(
+                        'ربط المستخدم بالأدوار المناسبة. حسابك الحالي وحسابات super_admin محمية من تعديل الأدوار من هذه الشاشة.',
+                        'Assign the user to the appropriate roles. Your current account and super_admin accounts are protected from role changes on this screen.'
+                    ))
                     ->schema([
                         Select::make('roles')
                             ->label(__('school.users.fields.roles'))
                             ->multiple()
                             ->preload()
                             ->searchable()
-                            ->disabled(fn(?User $record): bool => $record?->id === auth()->id() || ($record?->hasRole('super_admin') ?? false))
-                            ->relationship(titleAttribute: 'name')
-                            ->helperText(__('school.users.messages.roles_help'))
+                            ->relationship(name: 'roles', titleAttribute: 'name')
+                            ->options(fn(): array => self::roleOptions())
+                            ->disabled(fn(?User $record): bool => static::rolesFieldShouldBeDisabled($record))
+                            ->helperText(self::label(
+                                'الأدوار هي التي تحدد وصول المستخدم إلى لوحة الإدارة والصلاحيات المتاحة له. لا تمنح المستخدم أكثر مما يحتاج فعليًا.',
+                                'Roles control admin access and available permissions. Do not grant more access than the user actually needs.'
+                            ))
                             ->columnSpanFull(),
                     ])
                     ->columns(1),
@@ -168,31 +195,72 @@ class UserResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->defaultSort('id', 'desc')
+            ->modifyQueryUsing(
+                fn(Builder $query): Builder => $query
+                    ->with([
+                        'roles' => fn($rolesQuery) => $rolesQuery->orderBy('name'),
+                    ])
+                    ->withCount('roles')
+                    ->orderByDesc('id')
+            )
             ->columns([
                 TextColumn::make('name')
                     ->label(__('school.users.fields.name'))
                     ->searchable()
                     ->sortable()
-                    ->description(fn(User $record): ?string => $record->hasRole('super_admin')
-                        ? __('school.users.messages.protected_super_admin')
-                        : null),
+                    ->weight('bold')
+                    ->description(fn(User $record): ?string => self::userDescription($record)),
 
                 TextColumn::make('email')
                     ->label(__('school.users.fields.email'))
                     ->searchable()
+                    ->sortable()
+                    ->copyable(),
+
+                TextColumn::make('account_status')
+                    ->label(self::label('نوع الحساب', 'Account type'))
+                    ->state(fn(User $record): string => self::accountStatusLabel($record))
+                    ->badge()
+                    ->color(fn(User $record): string => $record->hasRole('super_admin') ? 'danger' : 'gray'),
+
+                TextColumn::make('admin_panel_access')
+                    ->label(self::label('دخول الإدارة', 'Admin access'))
+                    ->state(fn(User $record): string => self::panelAccessLabel($record))
+                    ->badge()
+                    ->color(fn(User $record): string => $record->can('admin_panel.access') ? 'success' : 'gray'),
+
+                TextColumn::make('roles_count')
+                    ->label(self::label('عدد الأدوار', 'Roles count'))
+                    ->badge()
+                    ->color('primary')
+                    ->alignCenter()
                     ->sortable(),
 
-                TextColumn::make('roles.name')
+                TextColumn::make('roles_summary')
                     ->label(__('school.users.fields.roles'))
-                    ->badge()
-                    ->separator(',')
-                    ->default('—'),
+                    ->state(fn(User $record): string => self::rolesSummary($record))
+                    ->html()
+                    ->wrap(),
 
                 TextColumn::make('created_at')
                     ->label(__('school.users.fields.created_at'))
                     ->dateTime('Y-m-d H:i')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
+
+                TextColumn::make('updated_at')
+                    ->label(self::label('آخر تحديث', 'Updated at'))
+                    ->dateTime('Y-m-d H:i')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+            ])
+            ->filters([
+                SelectFilter::make('roles')
+                    ->label(__('school.users.fields.roles'))
+                    ->relationship(name: 'roles', titleAttribute: 'name')
+                    ->multiple()
+                    ->preload()
+                    ->searchable(),
             ])
             ->recordActions([
                 EditAction::make()
@@ -200,6 +268,9 @@ class UserResource extends Resource
                     ->slideOver()
                     ->modalWidth(Width::SevenExtraLarge)
                     ->visible(fn(User $record): bool => static::canManageSensitiveUser($record))
+                    ->after(function (): void {
+                        app(PermissionRegistrar::class)->forgetCachedPermissions();
+                    })
                     ->successNotificationTitle(__('school.users.messages.updated')),
 
                 Action::make('changePassword')
@@ -209,23 +280,31 @@ class UserResource extends Resource
                     ->modalWidth(Width::ThreeExtraLarge)
                     ->visible(fn(User $record): bool => static::canManageSensitiveUser($record))
                     ->form([
-                        TextInput::make('password')
-                            ->label(__('school.users.fields.new_password'))
-                            ->password()
-                            ->revealable()
-                            ->required()
-                            ->confirmed()
-                            ->minLength(8)
-                            ->maxLength(255),
+                        Section::make(self::label('تغيير كلمة المرور', 'Change password'))
+                            ->description(self::label(
+                                'استخدم كلمة مرور قوية. سيتم حفظها مشفرة داخل قاعدة البيانات.',
+                                'Use a strong password. It will be stored encrypted in the database.'
+                            ))
+                            ->schema([
+                                TextInput::make('password')
+                                    ->label(__('school.users.fields.new_password'))
+                                    ->password()
+                                    ->revealable()
+                                    ->required()
+                                    ->confirmed()
+                                    ->minLength(8)
+                                    ->maxLength(255),
 
-                        TextInput::make('password_confirmation')
-                            ->label(__('school.users.fields.new_password_confirmation'))
-                            ->password()
-                            ->revealable()
-                            ->required()
-                            ->dehydrated(false)
-                            ->minLength(8)
-                            ->maxLength(255),
+                                TextInput::make('password_confirmation')
+                                    ->label(__('school.users.fields.new_password_confirmation'))
+                                    ->password()
+                                    ->revealable()
+                                    ->required()
+                                    ->dehydrated(false)
+                                    ->minLength(8)
+                                    ->maxLength(255),
+                            ])
+                            ->columns(1),
                     ])
                     ->action(function (User $record, array $data): void {
                         $record->forceFill([
@@ -233,7 +312,12 @@ class UserResource extends Resource
                         ])->save();
                     })
                     ->successNotificationTitle(__('school.users.messages.password_changed')),
-            ]);
+            ])
+            ->emptyStateHeading(self::label('لا يوجد مستخدمون', 'No users found'))
+            ->emptyStateDescription(self::label(
+                'لم يتم العثور على مستخدمين مطابقين للبحث أو الفلاتر الحالية.',
+                'No users match the current search or filters.'
+            ));
     }
 
     public static function getRelations(): array
@@ -246,5 +330,96 @@ class UserResource extends Resource
         return [
             'index' => ManageUsers::route('/'),
         ];
+    }
+
+    private static function currentUserIsSuperAdmin(): bool
+    {
+        return auth()->user()?->hasRole('super_admin') ?? false;
+    }
+
+    private static function canManageSensitiveUser(User $record): bool
+    {
+        if ($record->hasRole('super_admin') && ! static::currentUserIsSuperAdmin()) {
+            return false;
+        }
+
+        return auth()->user()?->can('users.update') ?? false;
+    }
+
+    private static function rolesFieldShouldBeDisabled(?User $record): bool
+    {
+        if (! $record instanceof User) {
+            return false;
+        }
+
+        if ($record->id === auth()->id()) {
+            return true;
+        }
+
+        return $record->hasRole('super_admin');
+    }
+
+    private static function roleOptions(): array
+    {
+        return Role::query()
+            ->where('guard_name', 'web')
+            ->orderBy('name')
+            ->pluck('name', 'id')
+            ->toArray();
+    }
+
+    private static function userDescription(User $record): ?string
+    {
+        $notes = [];
+
+        if ($record->id === auth()->id()) {
+            $notes[] = self::label('حسابك الحالي', 'Current account');
+        }
+
+        if ($record->hasRole('super_admin')) {
+            $notes[] = __('school.users.messages.protected_super_admin');
+        }
+
+        return $notes === [] ? null : implode(' • ', $notes);
+    }
+
+    private static function accountStatusLabel(User $record): string
+    {
+        if ($record->hasRole('super_admin')) {
+            return self::label('حساب النظام الرئيسي', 'Main system account');
+        }
+
+        if ($record->roles->isEmpty()) {
+            return self::label('بدون أدوار', 'No roles assigned');
+        }
+
+        return self::label('حساب مستخدم', 'User account');
+    }
+
+    private static function panelAccessLabel(User $record): string
+    {
+        return $record->can('admin_panel.access')
+            ? self::label('مسموح', 'Allowed')
+            : self::label('غير مسموح', 'Not allowed');
+    }
+
+    private static function rolesSummary(User $record): string
+    {
+        if ($record->roles->isEmpty()) {
+            return '<span class="text-gray-500">—</span>';
+        }
+
+        return $record->roles
+            ->sortBy('name')
+            ->map(fn(Role $role): string => sprintf(
+                '<span class="inline-flex items-center rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 ring-1 ring-gray-200">%s</span>',
+                e($role->name)
+            ))
+            ->implode(' ');
+    }
+
+    private static function label(string $ar, string $en): string
+    {
+        return app()->getLocale() === 'en' ? $en : $ar;
     }
 }
