@@ -143,7 +143,10 @@ class UserResource extends Resource
                             ->minLength(8)
                             ->maxLength(255),
                     ])
-                    ->columns(2),
+                    ->columns([
+                        'default' => 1,
+                        'md' => 2,
+                    ]),
 
                 Section::make(__('school.users.sections.roles.title'))
                     ->description(__('school.users.sections.roles.description'))
@@ -155,7 +158,8 @@ class UserResource extends Resource
                             ->searchable()
                             ->disabled(fn(?User $record): bool => $record?->id === auth()->id() || ($record?->hasRole('super_admin') ?? false))
                             ->relationship(titleAttribute: 'name')
-                            ->helperText(__('school.users.messages.roles_help')),
+                            ->helperText(__('school.users.messages.roles_help'))
+                            ->columnSpanFull(),
                     ])
                     ->columns(1),
             ]);
@@ -194,7 +198,7 @@ class UserResource extends Resource
                 EditAction::make()
                     ->label(__('school.users.actions.edit'))
                     ->slideOver()
-                    ->modalWidth(Width::FiveExtraLarge)
+                    ->modalWidth(Width::SevenExtraLarge)
                     ->visible(fn(User $record): bool => static::canManageSensitiveUser($record))
                     ->successNotificationTitle(__('school.users.messages.updated')),
 
@@ -202,7 +206,7 @@ class UserResource extends Resource
                     ->label(__('school.users.actions.change_password'))
                     ->icon('heroicon-o-key')
                     ->slideOver()
-                    ->modalWidth(Width::Large)
+                    ->modalWidth(Width::ThreeExtraLarge)
                     ->visible(fn(User $record): bool => static::canManageSensitiveUser($record))
                     ->form([
                         TextInput::make('password')
