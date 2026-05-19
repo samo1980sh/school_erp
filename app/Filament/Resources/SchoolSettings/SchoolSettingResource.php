@@ -28,9 +28,9 @@ class SchoolSettingResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-building-office-2';
 
-    protected static string|UnitEnum|null $navigationGroup = 'school.navigation.system_management';
+    protected static string|UnitEnum|null $navigationGroup = null;
 
-    protected static ?int $navigationSort = 40;
+    protected static ?int $navigationSort = 10;
 
     protected static ?string $recordTitleAttribute = 'school_name';
 
@@ -53,7 +53,7 @@ class SchoolSettingResource extends Resource
 
     public static function getNavigationGroup(): ?string
     {
-        return __('school.navigation.system_management');
+        return self::label('إعدادات المدرسة', 'School Settings');
     }
 
     public static function shouldRegisterNavigation(): bool
@@ -282,7 +282,7 @@ class SchoolSettingResource extends Resource
     {
         return $table
             ->modifyQueryUsing(
-                fn (Builder $query): Builder => $query
+                fn(Builder $query): Builder => $query
                     ->orderByDesc('is_active')
                     ->orderBy('id')
             )
@@ -292,7 +292,7 @@ class SchoolSettingResource extends Resource
                     ->searchable()
                     ->sortable()
                     ->weight('bold')
-                    ->description(fn (SchoolSetting $record): ?string => $record->legal_name),
+                    ->description(fn(SchoolSetting $record): ?string => $record->legal_name),
 
                 TextColumn::make('school_code')
                     ->label(self::label('رمز المدرسة', 'School code'))
@@ -318,7 +318,7 @@ class SchoolSettingResource extends Resource
                     ->label(self::label('اللغة', 'Language'))
                     ->badge()
                     ->color('primary')
-                    ->formatStateUsing(fn (?string $state): string => $state === 'en'
+                    ->formatStateUsing(fn(?string $state): string => $state === 'en'
                         ? self::label('إنكليزي', 'English')
                         : self::label('عربي', 'Arabic')),
 
@@ -329,11 +329,11 @@ class SchoolSettingResource extends Resource
 
                 TextColumn::make('is_active')
                     ->label(self::label('الحالة', 'Status'))
-                    ->state(fn (SchoolSetting $record): string => $record->is_active
+                    ->state(fn(SchoolSetting $record): string => $record->is_active
                         ? self::label('مفعلة', 'Active')
                         : self::label('غير مفعلة', 'Inactive'))
                     ->badge()
-                    ->color(fn (SchoolSetting $record): string => $record->is_active ? 'success' : 'gray'),
+                    ->color(fn(SchoolSetting $record): string => $record->is_active ? 'success' : 'gray'),
 
                 TextColumn::make('updated_at')
                     ->label(self::label('آخر تحديث', 'Updated at'))
@@ -346,7 +346,7 @@ class SchoolSettingResource extends Resource
                     ->label(self::label('تعديل', 'Edit'))
                     ->slideOver()
                     ->modalWidth(Width::SevenExtraLarge)
-                    ->visible(fn (SchoolSetting $record): bool => static::canEdit($record))
+                    ->visible(fn(SchoolSetting $record): bool => static::canEdit($record))
                     ->successNotificationTitle(self::label(
                         'تم تحديث هوية المدرسة بنجاح',
                         'School identity updated successfully'
