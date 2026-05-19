@@ -93,6 +93,7 @@ class AcademicTermResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema
+	->columns(1)
             ->components([
                 Section::make(self::label('تنظيم الفصل الدراسي', 'Academic term organization'))
                     ->description(self::label(

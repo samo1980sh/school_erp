@@ -91,6 +91,7 @@ class AcademicYearResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema
+	       ->columns(1)
             ->components([
                 Section::make(self::label('تنظيم السنة الدراسية', 'Academic year organization'))
                     ->description(self::label(
