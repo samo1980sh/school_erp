@@ -11,8 +11,8 @@ class DatabaseSeeder extends Seeder
     /**
      * Seed the application's database.
      *
-     * RBAC foundation:
-     * - Uses Spatie Laravel Permission only.
+     * Foundation:
+     * - Spatie Laravel Permission only.
      * - No Shield.
      * - No multiple guards.
      * - All roles and permissions use the web guard.
@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             RbacProfessionalSeeder::class,
             RoleMetadataSeeder::class,
+            SchoolSettingSeeder::class,
         ]);
     }
 }
