@@ -54,7 +54,7 @@ class ClassroomResource extends Resource
 
     public static function getNavigationGroup(): ?string
     {
-        return self::label('الإعدادات الأكاديمية', 'Academic Settings');
+        return self::label('الهيكل الأكاديمي', 'Academic Settings');
     }
 
     public static function shouldRegisterNavigation(): bool
