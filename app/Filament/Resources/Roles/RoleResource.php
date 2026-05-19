@@ -108,7 +108,10 @@ class RoleResource extends Resource
                             ->dehydrated()
                             ->maxLength(255),
                     ])
-                    ->columns(2),
+                    ->columns([
+                        'default' => 1,
+                        'md' => 2,
+                    ]),
 
                 Section::make(__('school.roles.sections.permissions.title'))
                     ->description(__('school.roles.sections.permissions.description'))
@@ -119,7 +122,8 @@ class RoleResource extends Resource
                             ->preload()
                             ->searchable()
                             ->relationship(titleAttribute: 'name')
-                            ->helperText(__('school.roles.messages.permissions_help')),
+                            ->helperText(__('school.roles.messages.permissions_help'))
+                            ->columnSpanFull(),
                     ])
                     ->columns(1),
             ]);
@@ -158,7 +162,7 @@ class RoleResource extends Resource
                 EditAction::make()
                     ->label(__('school.roles.actions.edit'))
                     ->slideOver()
-                    ->modalWidth(Width::FiveExtraLarge)
+                    ->modalWidth(Width::SevenExtraLarge)
                     ->visible(fn(Role $record): bool => $record->name !== 'super_admin'
                         && (auth()->user()?->can('roles.update') ?? false))
                     ->after(function (): void {
