@@ -137,15 +137,24 @@ final class RbacPermissionMetadata
             return null;
         }
 
-        $translationKey = "rbac.permissions.{$permission->name}.{$key}";
+        $translationKeys = [
+            "rbac.permissions.{$permission->name}.{$key}",
+            "rbac_module_permissions.permissions.{$permission->name}.{$key}",
+        ];
 
-        if (! Lang::has($translationKey)) {
-            return null;
+        foreach ($translationKeys as $translationKey) {
+            if (! Lang::has($translationKey)) {
+                continue;
+            }
+
+            $value = trim((string) __($translationKey));
+
+            if ($value !== '') {
+                return $value;
+            }
         }
 
-        $value = trim((string) __($translationKey));
-
-        return $value !== '' ? $value : null;
+        return null;
     }
 
     private static function fallbackText(mixed $value, string $default): string
